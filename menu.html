@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+    <meta name="theme-color" content="#0a0a0f">
+    <title>قهوة الشام | المنيو</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0a0a0f;--card:#16161f;--accent:#c9a962;--accent2:#667eea;--text:#fff;--muted:#8a8a9a;--border:#2a2a3a;--success:#4ade80;--danger:#ef4444}
+        body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:40px}
+        
+        .header{padding:15px;position:sticky;top:0;background:var(--bg);z-index:100;border-bottom:1px solid var(--border)}
+        .header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+        .logo{display:flex;align-items:center;gap:10px}
+        .logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),#8b7340);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+        .logo-text{font-size:1.2rem;font-weight:800}
+        .logo-text span{color:var(--accent)}
+        .customer-badge{background:var(--accent);color:#000;padding:4px 10px;border-radius:15px;font-size:0.75rem;font-weight:700}
+        
+        .search{background:var(--card);border:1px solid var(--border);border-radius:25px;padding:10px 15px;display:flex;align-items:center;gap:10px}
+        .search input{flex:1;background:none;border:none;color:var(--text);font-size:0.9rem;outline:none}
+        .search input::placeholder{color:var(--muted)}
+        
+        .cats{display:flex;gap:8px;padding:12px 15px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+        .cats::-webkit-scrollbar{display:none}
+        .cat{flex-shrink:0;padding:8px 16px;background:var(--card);border:1px solid var(--border);border-radius:20px;color:var(--muted);font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s}
+        .cat:hover{border-color:var(--accent);color:var(--text)}
+        .cat.active{background:var(--accent);border-color:var(--accent);color:#000}
+        
+        .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:15px}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:transform .2s,border-color .2s}
+        .card:hover{border-color:var(--accent)}
+        .card:active{transform:scale(.98)}
+        .card-img{height:100px;background:linear-gradient(135deg,#1e1e2a,var(--card));display:flex;align-items:center;justify-content:center;font-size:2.8rem;position:relative}
+        .card-img img{width:100%;height:100%;object-fit:cover}
+        .card-badge{position:absolute;top:6px;right:6px;background:var(--success);color:#000;padding:3px 8px;border-radius:10px;font-size:0.65rem;font-weight:700}
+        .card-info{padding:12px}
+        .card-name{font-size:0.9rem;font-weight:700;margin-bottom:4px;line-height:1.3}
+        .card-cat{font-size:0.75rem;color:var(--muted);margin-bottom:8px}
+        .card-price{font-size:0.95rem;font-weight:800;color:var(--accent)}
+        .card-price small{font-size:0.7rem;color:var(--muted);font-weight:500}
+        
+        /* Modal */
+        .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:flex-end}
+        .modal.show{display:flex}
+        .modal-box{background:var(--card);border-radius:20px 20px 0 0;width:100%;max-height:85vh;overflow-y:auto;animation:up .25s}
+        @keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        .modal-head{padding:15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card)}
+        .modal-close{width:35px;height:35px;background:#1e1e2a;border:none;border-radius:50%;color:var(--text);font-size:1.2rem;cursor:pointer}
+        .modal-close:hover{background:var(--accent);color:#000}
+        .modal-body{padding:15px}
+        .modal-img{height:160px;background:#1e1e2a;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:4rem;margin-bottom:15px;overflow:hidden}
+        .modal-img img{width:100%;height:100%;object-fit:cover}
+        .modal-title{font-size:1.3rem;font-weight:800;margin-bottom:8px}
+        .modal-desc{color:var(--muted);font-size:0.9rem;line-height:1.5;margin-bottom:15px}
+        
+        /* Sizes/Options */
+        .sizes{margin-bottom:15px}
+        .sizes-title{font-size:0.9rem;color:var(--muted);margin-bottom:10px;font-weight:600;display:flex;align-items:center;gap:8px}
+        .sizes-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+        .size-item{padding:12px;background:#1e1e2a;border:2px solid var(--border);border-radius:10px;text-align:center;transition:all .2s}
+        .size-icon{font-size:1.5rem;margin-bottom:6px}
+        .size-name{font-weight:700;font-size:0.85rem;margin-bottom:4px}
+        .size-price{color:var(--accent);font-weight:800;font-size:0.9rem}
+        
+        /* Single Price */
+        .modal-price{font-size:1.5rem;font-weight:800;color:var(--accent);text-align:center;padding:15px;background:#1e1e2a;border-radius:12px}
+        .modal-price small{font-size:0.8rem;color:var(--muted);font-weight:500}
+        
+        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--card);border:1px solid var(--accent);color:var(--text);padding:12px 20px;border-radius:25px;font-weight:600;z-index:300;opacity:0;transition:all .3s;display:flex;align-items:center;gap:8px}
+        .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+        
+        .empty{grid-column:1/-1;text-align:center;padding:50px 20px;color:var(--muted)}
+        .empty-icon{font-size:3rem;margin-bottom:15px;opacity:.3}
+        
+        .loading{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted)}
+        .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;margin:0 auto 15px;animation:spin 1s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        
+        /* Footer */
+        .footer{text-align:center;padding:30px 15px;color:var(--muted);font-size:0.85rem;border-top:1px solid var(--border);margin-top:20px}
+        
+        @media(min-width:400px){.grid{grid-template-columns:repeat(2,1fr)}}
+        @media(min-width:600px){.grid{grid-template-columns:repeat(3,1fr);gap:15px}.card-img{height:120px}}
+        @media(min-width:900px){.grid{grid-template-columns:repeat(4,1fr);max-width:1200px;margin:0 auto}}
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <div class="logo">
+                <div class="logo-icon">☕</div>
+                <div class="logo-text">قهوة <span>الشام</span></div>
+            </div>
+            <span class="customer-badge">المنيو</span>
+        </div>
+        <div class="search">
+            <span>🔍</span>
+            <input type="text" placeholder="ابحث عن منتج..." id="search" oninput="filter()">
+        </div>
+    </header>
+    
+    <div class="cats" id="cats"></div>
+    <div class="grid" id="grid"><div class="loading"><div class="spinner"></div><p>جاري تحميل المنيو...</p></div></div>
+    
+    <!-- Product Modal -->
+    <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+        <div class="modal-box">
+            <div class="modal-head">
+                <span style="font-weight:700;">تفاصيل المنتج</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+    
+    
+    <footer class="footer">
+        <p>☕ قهوة الشام - مرحباً بكم</p>
+    </footer>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBD3RarLj_696emYW84zZ1tliP_Th1z6mM",
+            authDomain: "sham-coffee.firebaseapp.com",
+            databaseURL: "https://sham-coffee-default-rtdb.firebaseio.com",
+            projectId: "sham-coffee",
+            storageBucket: "sham-coffee.firebasestorage.app",
+            messagingSenderId: "483086837036",
+            appId: "1:483086837036:web:2a6bf9084050ef399ef889"
+        };
+        firebase.initializeApp(firebaseConfig);
+        
+        const db = firebase.database();
+        const RID = 'sham-coffee-1';
+        
+        let items = [], cats = [], cat = 'all';
+        let globalShishaTypes = {};
+        
+        // Load data
+        async function load() {
+            try {
+                const [cSnap, mSnap, shishaSnap] = await Promise.all([
+                    db.ref(`restaurant-system/restaurants/${RID}/categories`).once('value'),
+                    db.ref(`restaurant-system/restaurants/${RID}/menu`).once('value'),
+                    db.ref(`restaurant-system/restaurants/${RID}/shisha-types`).once('value')
+                ]);
+                
+                cats = cSnap.val() ? Object.entries(cSnap.val()).map(([id, c]) => ({id, ...c})) : [];
+                items = mSnap.val() ? Object.entries(mSnap.val()).map(([id, i]) => ({id, ...i})).filter(i => i.active !== false) : [];
+                globalShishaTypes = shishaSnap.val() || {};
+                
+                // تحديث منتجات الشيشة بالأنواع المركزية
+                // البحث عن فئة الشيشة
+                const shishaCat = cats.find(c => c.id === 'shisha' || c.name === 'الشيشة' || (c.name && c.name.includes('شيشة')));
+                const shishaCatId = shishaCat ? shishaCat.id : 'shisha';
+                
+                if (Object.keys(globalShishaTypes).length > 0) {
+                    items.forEach(item => {
+                        // التحقق من أن المنتج شيشة
+                        const isShishaProduct = item.category === shishaCatId || 
+                                               item.category === 'shisha' || 
+                                               item.isShisha || 
+                                               item.shishaTypes;
+                        if (isShishaProduct) {
+                            item.shishaTypes = globalShishaTypes;
+                            item.isShisha = true;
+                        }
+                    });
+                }
+                
+                renderCats();
+                render();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('grid').innerHTML = '<div class="empty"><div class="empty-icon">❌</div><p>خطأ في تحميل المنيو</p></div>';
+            }
+        }
+        
+        function renderCats() {
+            const container = document.getElementById('cats');
+            let html = `<div class="cat ${cat==='all'?'active':''}" onclick="selectCat('all',this)">📋 الكل</div>`;
+            cats.forEach(c => {
+                html += `<div class="cat ${cat===c.id?'active':''}" onclick="selectCat('${c.id}',this)">${c.emoji||'📦'} ${c.name}</div>`;
+            });
+            container.innerHTML = html;
+        }
+        
+        function selectCat(id, el) {
+            cat = id;
+            document.querySelectorAll('.cat').forEach(c => c.classList.remove('active'));
+            if (el) el.classList.add('active');
+            render();
+        }
+        
+        function render() {
+            const grid = document.getElementById('grid');
+            const searchVal = document.getElementById('search').value.toLowerCase();
+            
+            let filtered = items.filter(i => {
+                const matchCat = cat === 'all' || i.category === cat;
+                const matchSearch = !searchVal || i.name.toLowerCase().includes(searchVal) || (i.nameEn && i.nameEn.toLowerCase().includes(searchVal));
+                return matchCat && matchSearch;
+            });
+            
+            if (filtered.length === 0) {
+                grid.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><p>لا توجد منتجات</p></div>';
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(item => {
+                // Get price display
+                let priceDisplay = '';
+                if (item.shishaTypes && Object.keys(item.shishaTypes).length > 0) {
+                    const prices = Object.values(item.shishaTypes).map(t => parseFloat(t.price || 0));
+                    const minPrice = Math.min(...prices);
+                    priceDisplay = `<small>من</small> ${minPrice.toFixed(3)}`;
+                } else if (item.sizes && Object.keys(item.sizes).length > 0) {
+                    const prices = Object.values(item.sizes).map(s => parseFloat(s.price || 0));
+                    const minPrice = Math.min(...prices);
+                    priceDisplay = `<small>من</small> ${minPrice.toFixed(3)}`;
+                } else {
+                    priceDisplay = parseFloat(item.price || 0).toFixed(3);
+                }
+                
+                // Get category name
+                const catInfo = cats.find(c => c.id === item.category);
+                const catName = catInfo ? catInfo.name : '';
+                
+                return `
+                    <div class="card" onclick="showProduct('${item.id}')">
+                        <div class="card-img">
+                            ${(item.imageUrl || item.image) ? `<img src="${item.imageUrl || item.image}" alt="${item.name}" loading="lazy">` : (item.emoji || '☕')}
+                            ${item.isNew ? '<span class="card-badge">جديد</span>' : ''}
+                        </div>
+                        <div class="card-info">
+                            <div class="card-name">${item.name}</div>
+                            <div class="card-cat">${catName}</div>
+                            <div class="card-price">${priceDisplay} <small>ر.ع</small></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function filter() {
+            render();
+        }
+        
+        function showProduct(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+            
+            const modalBody = document.getElementById('modalBody');
+            
+            // Check for options (shisha types or sizes)
+            let optionsHtml = '';
+            let priceHtml = '';
+            
+            if (item.shishaTypes && Object.keys(item.shishaTypes).length > 0) {
+                optionsHtml = `
+                    <div class="sizes">
+                        <div class="sizes-title">🌿 أنواع الشيشة المتوفرة:</div>
+                        <div class="sizes-list">
+                            ${Object.entries(item.shishaTypes).map(([key, type]) => `
+                                <div class="size-item">
+                                    <div class="size-icon">${type.icon || '💨'}</div>
+                                    <div class="size-name">${type.name}</div>
+                                    <div class="size-price">${parseFloat(type.price || 0).toFixed(3)} ر.ع</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (item.sizes && Object.keys(item.sizes).length > 0) {
+                optionsHtml = `
+                    <div class="sizes">
+                        <div class="sizes-title">📏 الأحجام المتوفرة:</div>
+                        <div class="sizes-list">
+                            ${Object.entries(item.sizes).map(([key, size]) => `
+                                <div class="size-item">
+                                    <div class="size-icon">${size.icon || '☕'}</div>
+                                    <div class="size-name">${size.name}</div>
+                                    <div class="size-price">${parseFloat(size.price || 0).toFixed(3)} ر.ع</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                priceHtml = `<div class="modal-price">${parseFloat(item.price || 0).toFixed(3)} <small>ر.ع</small></div>`;
+            }
+            
+            modalBody.innerHTML = `
+                <div class="modal-img">
+                    ${(item.imageUrl || item.image) ? `<img src="${item.imageUrl || item.image}" alt="${item.name}">` : (item.emoji || '☕')}
+                </div>
+                <div class="modal-title">${item.name}</div>
+                ${item.description ? `<div class="modal-desc">${item.description}</div>` : ''}
+                ${optionsHtml}
+                ${priceHtml}
+            `;
+            
+            document.getElementById('modal').classList.add('show');
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').classList.remove('show');
+        }
+        
+        // Initialize
+        load();
+    </script>
+</body>
+</html>

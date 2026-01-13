@@ -1,0 +1,1948 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قهوة الشام - نظام العمال</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #d4a574;
+            --primary-dark: #b8956a;
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-sidebar: #0d0d12;
+            --text: #ffffff;
+            --text-muted: #8a8a9a;
+            --border: #2a2a3e;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --gradient: linear-gradient(135deg, #d4a574 0%, #b8956a 100%);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            width: 50px; height: 50px;
+            background: var(--gradient);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+        }
+        
+        .logo-text h1 { font-size: 18px; font-weight: 800; color: var(--primary); }
+        .logo-text p { font-size: 11px; color: var(--text-muted); }
+        
+        .user-info {
+            padding: 15px 20px;
+            background: rgba(212, 165, 116, 0.05);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .user-card { display: flex; align-items: center; gap: 10px; }
+        
+        .user-avatar {
+            width: 40px; height: 40px;
+            background: var(--gradient);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--bg-dark);
+            font-weight: 700;
+        }
+        
+        .user-details h3 { font-size: 14px; font-weight: 700; }
+        .user-details p { font-size: 11px; color: var(--primary); }
+        
+        .connection-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 15px;
+            margin: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+        
+        .connection-badge.online { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .connection-badge.offline { background: rgba(239, 68, 68, 0.1); color: var(--error); }
+        .connection-badge i { font-size: 8px; }
+        
+        .nav-menu { flex: 1; padding: 15px 12px; overflow-y: auto; }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 5px;
+            color: var(--text-muted);
+            border: 2px solid transparent;
+        }
+        
+        .nav-item:hover { background: rgba(212, 165, 116, 0.08); color: var(--text); }
+        .nav-item.active { background: rgba(212, 165, 116, 0.12); color: var(--primary); border-color: rgba(212, 165, 116, 0.3); }
+        .nav-item i { font-size: 18px; width: 22px; text-align: center; }
+        .nav-item span { font-size: 14px; font-weight: 600; }
+        
+        .nav-badge {
+            margin-right: auto;
+            background: var(--error);
+            color: white;
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 15px;
+        }
+        
+        .sidebar-footer { padding: 15px; border-top: 1px solid var(--border); }
+        
+        .btn-logout {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 10px;
+            color: var(--error);
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-logout:hover { background: var(--error); color: white; }
+        
+        /* Main Content */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .header {
+            padding: 18px 25px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .header-title { display: flex; align-items: center; gap: 12px; }
+        .header-title i { font-size: 22px; color: var(--primary); }
+        .header-title h2 { font-size: 20px; font-weight: 700; }
+        
+        .header-time { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
+        .header-time i { color: var(--primary); }
+        
+        .page-content { flex: 1; overflow: hidden; position: relative; }
+        
+        .page {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .page.active { opacity: 1; visibility: visible; }
+        
+        /* Cashier Page */
+        .cashier-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; height: 100%; }
+        
+        .products-section { display: flex; flex-direction: column; gap: 15px; }
+        
+        .categories-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 15px;
+            background: var(--bg-card);
+            border-radius: 12px;
+        }
+        
+        .category-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .category-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .category-btn.active { background: var(--primary); border-color: var(--primary); color: var(--bg-dark); }
+        
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px;
+        }
+        
+        .product-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .product-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .product-card .emoji { font-size: 36px; margin-bottom: 8px; }
+        .product-card .name { font-size: 13px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
+        .product-card .price { font-size: 14px; font-weight: 700; color: var(--primary); }
+        
+        /* Cart Section */
+        .cart-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border);
+        }
+        
+        .cart-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .cart-header h3 { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .cart-header h3 i { color: var(--primary); }
+        
+        .btn-clear {
+            background: rgba(239, 68, 68, 0.1);
+            border: none;
+            color: var(--error);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        .btn-clear:hover { background: var(--error); color: white; }
+        
+        .cart-items { flex: 1; overflow-y: auto; padding: 15px; }
+        
+        .cart-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--bg-dark);
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .cart-item .emoji { font-size: 24px; }
+        .cart-item-info { flex: 1; }
+        .cart-item-info .name { font-size: 13px; font-weight: 600; }
+        .cart-item-info .price { font-size: 12px; color: var(--primary); }
+        
+        .qty-controls { display: flex; align-items: center; gap: 8px; }
+        
+        .qty-btn {
+            width: 28px; height: 28px;
+            border: none;
+            border-radius: 6px;
+            background: var(--border);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .qty-btn:hover { background: var(--primary); color: var(--bg-dark); }
+        .qty-num { font-size: 14px; font-weight: 700; min-width: 20px; text-align: center; }
+        
+        .cart-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+        
+        .cart-empty i { font-size: 40px; margin-bottom: 15px; opacity: 0.5; }
+        .cart-empty p { font-size: 14px; }
+        
+        .cart-footer { padding: 20px; border-top: 1px solid var(--border); }
+        
+        .table-input {
+            width: 100%;
+            padding: 12px 15px;
+            background: var(--bg-dark);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            margin-bottom: 15px;
+        }
+        
+        .table-input:focus { outline: none; border-color: var(--primary); }
+        
+        .cart-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: rgba(212, 165, 116, 0.1);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .cart-total span { font-size: 14px; color: var(--text-muted); }
+        .cart-total strong { font-size: 22px; font-weight: 800; color: var(--primary); }
+        
+        .payment-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        
+        .btn-pay {
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .btn-pay i { font-size: 18px; }
+        .btn-pay.cash { background: var(--success); color: white; }
+        .btn-pay.card { background: #3b82f6; color: white; }
+        .btn-pay.later { background: var(--warning); color: var(--bg-dark); }
+        .btn-pay:hover { transform: scale(1.02); }
+        .btn-pay:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        /* Tables Page */
+        .tables-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .table-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+        
+        .table-card.occupied { border-color: var(--warning); }
+        
+        .table-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .table-number {
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .table-number i { color: var(--primary); }
+        
+        .table-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .table-status.free { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .table-status.occupied { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+        
+        .table-info { margin-bottom: 15px; }
+        .table-info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+        .table-info-row span { color: var(--text-muted); }
+        .table-info-row strong { color: var(--text); }
+        
+        .table-actions { display: flex; gap: 10px; }
+        
+        .btn-table {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        
+        .btn-table.view { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+        .btn-table.pay { background: var(--success); color: white; }
+        .btn-table:hover { transform: scale(1.02); }
+        
+        /* Sessions Page */
+        .sessions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .session-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+        
+        .session-card.active { border-color: var(--success); }
+        
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .session-name { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .session-name i { color: var(--primary); }
+        
+        .session-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .session-status.available { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .session-status.busy { background: rgba(239, 68, 68, 0.1); color: var(--error); }
+        
+        .session-info { margin-bottom: 15px; }
+        .session-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+        .session-row span { color: var(--text-muted); }
+        .session-row strong { color: var(--text); }
+        
+        .session-actions { display: flex; gap: 10px; }
+        
+        .btn-session {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        .btn-session.start { background: var(--success); color: white; }
+        .btn-session.end { background: var(--error); color: white; }
+        .btn-session.order { background: var(--primary); color: var(--bg-dark); }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 9999;
+            transition: transform 0.3s;
+        }
+        
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.success { background: var(--success); color: white; }
+        .toast.error { background: var(--error); color: white; }
+        .toast.warning { background: var(--warning); color: var(--bg-dark); }
+        
+        /* New Orders Badge */
+        .orders-notification {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: var(--error);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            z-index: 1000;
+            animation: pulse 1s infinite;
+        }
+        
+        .orders-notification.show { display: flex; }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        
+        .empty-state i { font-size: 50px; margin-bottom: 20px; opacity: 0.3; }
+        .empty-state p { font-size: 16px; }
+        
+        /* My Orders Page */
+        .myorders-header {
+            margin-bottom: 20px;
+        }
+        
+        .myorders-stats {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .stat-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .stat-box i {
+            font-size: 28px;
+            color: var(--primary);
+        }
+        
+        .stat-box.success i { color: var(--success); }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: 800;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .myorders-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .order-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .order-card:hover {
+            border-color: var(--primary);
+            transform: translateX(-5px);
+        }
+        
+        .order-card.cancelled {
+            opacity: 0.6;
+            border-color: var(--error);
+        }
+        
+        .order-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .order-icon {
+            width: 45px;
+            height: 45px;
+            background: rgba(212, 165, 116, 0.15);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .order-card.cancelled .order-icon {
+            background: rgba(239, 68, 68, 0.15);
+        }
+        
+        .order-details h4 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        
+        .order-details p {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .order-amount {
+            text-align: left;
+        }
+        
+        .order-amount .price {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+        
+        .order-amount .status {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 15px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+        
+        .order-amount .status.paid { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .order-amount .status.pending { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .order-amount .status.cancelled { background: rgba(239, 68, 68, 0.15); color: var(--error); }
+        
+        /* Order Modal */
+        .order-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+        
+        .order-modal.active {
+            display: flex;
+        }
+        
+        .order-modal-content {
+            background: var(--bg-card);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+        
+        .cancel-content {
+            max-width: 400px;
+        }
+        
+        .order-modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .order-modal-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .order-modal-header h3 i {
+            color: var(--primary);
+        }
+        
+        .cancel-header h3 i {
+            color: var(--error);
+        }
+        
+        .modal-close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 28px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        .modal-close-btn:hover {
+            color: var(--text);
+        }
+        
+        .order-modal-body {
+            padding: 20px;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+        
+        .order-modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .modal-btn.print {
+            background: var(--primary);
+            color: var(--bg-dark);
+        }
+        
+        .modal-btn.cancel {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--error);
+        }
+        
+        .modal-btn.confirm-cancel {
+            background: var(--error);
+            color: white;
+        }
+        
+        .modal-btn.close {
+            background: var(--border);
+            color: var(--text);
+        }
+        
+        .modal-btn:hover {
+            transform: scale(1.02);
+        }
+        
+        .invoice-preview {
+            background: var(--bg-dark);
+            border-radius: 12px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .invoice-header {
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 2px dashed var(--border);
+            margin-bottom: 15px;
+        }
+        
+        .invoice-header h2 {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .invoice-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+        
+        .invoice-row:last-child {
+            border-bottom: none;
+        }
+        
+        .invoice-items {
+            margin: 15px 0;
+            padding: 15px 0;
+            border-top: 2px dashed var(--border);
+            border-bottom: 2px dashed var(--border);
+        }
+        
+        .invoice-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+        
+        .invoice-total {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid var(--primary);
+            font-size: 18px;
+            font-weight: 800;
+        }
+        
+        .cancelled-badge {
+            background: var(--error);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-icon">☕</div>
+                <div class="logo-text">
+                    <h1>قهوة الشام</h1>
+                    <p>نظام العمال</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="user-info">
+            <div class="user-card">
+                <div class="user-avatar" id="user-avatar">م</div>
+                <div class="user-details">
+                    <h3 id="user-name">المستخدم</h3>
+                    <p id="user-position">موظف</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="connection-badge online" id="connection-badge">
+            <i class="fas fa-circle"></i>
+            <span>متصل</span>
+        </div>
+        
+        <nav class="nav-menu">
+            <div class="nav-item active" data-page="cashier" onclick="showPage('cashier')">
+                <i class="fas fa-cash-register"></i>
+                <span>الكاشير</span>
+            </div>
+            
+            <div class="nav-item" data-page="tables" onclick="showPage('tables')">
+                <i class="fas fa-chair"></i>
+                <span>الطاولات</span>
+                <span class="nav-badge" id="tables-badge" style="display:none">0</span>
+            </div>
+            
+            <div class="nav-item" data-page="sessions" onclick="showPage('sessions')">
+                <i class="fas fa-door-open"></i>
+                <span>الجلسات الخاصة</span>
+            </div>
+            
+            <div class="nav-item" data-page="myorders" onclick="showPage('myorders')">
+                <i class="fas fa-history"></i>
+                <span>طلباتي اليوم</span>
+                <span class="nav-badge" id="myorders-badge" style="display:none">0</span>
+            </div>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <button class="btn-logout" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                تسجيل الخروج
+            </button>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="header">
+            <div class="header-title">
+                <i class="fas fa-cash-register" id="page-icon"></i>
+                <h2 id="page-title">الكاشير</h2>
+            </div>
+            <div class="header-time">
+                <i class="fas fa-clock"></i>
+                <span id="current-time"></span>
+            </div>
+        </header>
+        
+        <div class="page-content">
+            <!-- Cashier Page -->
+            <div class="page active" id="page-cashier">
+                <div class="cashier-layout">
+                    <div class="products-section">
+                        <div class="categories-bar" id="categories-bar"></div>
+                        <div class="products-grid" id="products-grid"></div>
+                    </div>
+                    
+                    <div class="cart-section">
+                        <div class="cart-header">
+                            <h3><i class="fas fa-receipt"></i> الفاتورة</h3>
+                            <button class="btn-clear" onclick="clearCart()">
+                                <i class="fas fa-trash"></i> تفريغ
+                            </button>
+                        </div>
+                        
+                        <div class="cart-items" id="cart-items">
+                            <div class="cart-empty">
+                                <i class="fas fa-shopping-basket"></i>
+                                <p>السلة فارغة</p>
+                            </div>
+                        </div>
+                        
+                        <div class="cart-footer">
+                            <input type="text" class="table-input" id="table-number" placeholder="رقم الطاولة (اختياري)">
+                            
+                            <div class="cart-total">
+                                <span>الإجمالي</span>
+                                <strong id="cart-total">0.000 ر.ع</strong>
+                            </div>
+                            
+                            <div class="payment-buttons">
+                                <button class="btn-pay cash" onclick="processPayment('cash')" id="btn-cash" disabled>
+                                    <i class="fas fa-money-bill-wave"></i>
+                                    نقداً
+                                </button>
+                                <button class="btn-pay card" onclick="processPayment('card')" id="btn-card" disabled>
+                                    <i class="fas fa-credit-card"></i>
+                                    بطاقة
+                                </button>
+                                <button class="btn-pay later" onclick="processPayment('later')" id="btn-later" disabled>
+                                    <i class="fas fa-clock"></i>
+                                    لاحقاً
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tables Page -->
+            <div class="page" id="page-tables">
+                <div class="tables-grid" id="tables-grid">
+                    <div class="empty-state">
+                        <i class="fas fa-chair"></i>
+                        <p>لا توجد طاولات مفتوحة</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sessions Page -->
+            <div class="page" id="page-sessions">
+                <div class="sessions-grid" id="sessions-grid">
+                    <div class="empty-state">
+                        <i class="fas fa-door-open"></i>
+                        <p>لا توجد جلسات</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- My Orders Today Page -->
+            <div class="page" id="page-myorders">
+                <div class="myorders-header">
+                    <div class="myorders-stats">
+                        <div class="stat-box">
+                            <i class="fas fa-receipt"></i>
+                            <div>
+                                <span class="stat-number" id="my-orders-count">0</span>
+                                <span class="stat-label">طلب</span>
+                            </div>
+                        </div>
+                        <div class="stat-box success">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <div>
+                                <span class="stat-number" id="my-orders-total">0.000</span>
+                                <span class="stat-label">ر.ع</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="myorders-list" id="myorders-list">
+                    <div class="empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <p>لا توجد طلبات اليوم</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Order View Modal -->
+    <div class="order-modal" id="order-view-modal">
+        <div class="order-modal-content">
+            <div class="order-modal-header">
+                <h3><i class="fas fa-receipt"></i> تفاصيل الفاتورة</h3>
+                <button class="modal-close-btn" onclick="closeOrderModal()">&times;</button>
+            </div>
+            <div class="order-modal-body" id="order-modal-body">
+                <!-- Order details will be loaded here -->
+            </div>
+            <div class="order-modal-footer">
+                <button class="modal-btn print" onclick="printCurrentOrder()">
+                    <i class="fas fa-print"></i> طباعة
+                </button>
+                <button class="modal-btn cancel" onclick="showCancelDialog()">
+                    <i class="fas fa-times-circle"></i> إلغاء الفاتورة
+                </button>
+                <button class="modal-btn close" onclick="closeOrderModal()">
+                    <i class="fas fa-check"></i> إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Cancel Order Modal -->
+    <div class="order-modal" id="cancel-modal">
+        <div class="order-modal-content cancel-content">
+            <div class="order-modal-header cancel-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> إلغاء الفاتورة</h3>
+                <button class="modal-close-btn" onclick="closeCancelModal()">&times;</button>
+            </div>
+            <div class="order-modal-body">
+                <p style="margin-bottom: 15px; color: var(--warning);">⚠️ سيتم إلغاء هذه الفاتورة نهائياً</p>
+                <label style="display: block; margin-bottom: 10px; font-weight: 600;">سبب الإلغاء:</label>
+                <textarea id="cancel-reason" placeholder="اكتب سبب إلغاء الفاتورة..." style="width: 100%; min-height: 100px; padding: 12px; background: var(--bg-dark); border: 2px solid var(--border); border-radius: 10px; color: var(--text); font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+            </div>
+            <div class="order-modal-footer">
+                <button class="modal-btn cancel confirm-cancel" onclick="confirmCancelOrder()">
+                    <i class="fas fa-trash"></i> تأكيد الإلغاء
+                </button>
+                <button class="modal-btn close" onclick="closeCancelModal()">
+                    <i class="fas fa-arrow-right"></i> رجوع
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toast-message"></span>
+    </div>
+    
+    <!-- New Orders Notification -->
+    <div class="orders-notification" id="orders-notification" onclick="showPage('tables')">
+        <i class="fas fa-bell"></i>
+        <span>طلبات جديدة!</span>
+    </div>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        // Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBfLU4MCD5tDYrDhfUnKSp0T2LPuyMqHEY",
+            authDomain: "sham-coffee.firebaseapp.com",
+            databaseURL: "https://sham-coffee-default-rtdb.firebaseio.com",
+            projectId: "sham-coffee",
+            storageBucket: "sham-coffee.appspot.com",
+            messagingSenderId: "440556943055",
+            appId: "1:440556943055:web:cc0b2c95b4ac95f6ff5c22"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const RESTAURANT_ID = 'sham-coffee-1';
+        
+        // Check login
+        if (localStorage.getItem('worker_logged_in') !== 'true') {
+            window.location.href = 'login.html';
+        }
+        
+        // User info
+        const userName = localStorage.getItem('worker_name') || 'المستخدم';
+        const userPosition = localStorage.getItem('worker_position') || 'موظف';
+        document.getElementById('user-name').textContent = userName;
+        document.getElementById('user-position').textContent = userPosition;
+        document.getElementById('user-avatar').textContent = userName.charAt(0);
+        
+        // Connection status
+        function updateConnection() {
+            const badge = document.getElementById('connection-badge');
+            if (navigator.onLine) {
+                badge.className = 'connection-badge online';
+                badge.innerHTML = '<i class="fas fa-circle"></i><span>متصل</span>';
+            } else {
+                badge.className = 'connection-badge offline';
+                badge.innerHTML = '<i class="fas fa-circle"></i><span>غير متصل</span>';
+            }
+        }
+        window.addEventListener('online', updateConnection);
+        window.addEventListener('offline', updateConnection);
+        updateConnection();
+        
+        // Time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleString('ar-SA', {
+                weekday: 'long', hour: '2-digit', minute: '2-digit', hour12: true
+            });
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // Page navigation
+        const pageInfo = {
+            cashier: { title: 'الكاشير', icon: 'fa-cash-register' },
+            tables: { title: 'الطاولات', icon: 'fa-chair' },
+            sessions: { title: 'الجلسات الخاصة', icon: 'fa-door-open' },
+            myorders: { title: 'طلباتي اليوم', icon: 'fa-history' }
+        };
+        
+        function showPage(page) {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelector(`[data-page="${page}"]`).classList.add('active');
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${page}`).classList.add('active');
+            document.getElementById('page-title').textContent = pageInfo[page].title;
+            document.getElementById('page-icon').className = `fas ${pageInfo[page].icon}`;
+        }
+        
+        // Toast
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = msg;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        // Print result listener
+        let lastReceiptHTML = '';
+        
+        ipcRenderer.on('print-result', (event, result) => {
+            if (result.success) {
+                showToast('تم فتح نافذة الطباعة 🖨️', 'success');
+            } else {
+                showToast('حدث خطأ في الطباعة', 'error');
+            }
+        });
+        
+        // ==================== CASHIER ====================
+        let products = [];
+        let categories = [];
+        let cart = [];
+        let currentCategory = 'all';
+        
+        // Load menu from Firebase
+        function loadMenu() {
+            // تحميل الفئات
+            db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}/categories`).on('value', snapshot => {
+                const data = snapshot.val();
+                categories = [{ id: 'all', name: 'الكل', emoji: '📋' }];
+                if (data) {
+                    Object.entries(data).forEach(([id, cat]) => {
+                        categories.push({ id, name: cat.name, emoji: cat.emoji || '📦' });
+                    });
+                }
+                categories.sort((a, b) => (a.order || 0) - (b.order || 0));
+                renderCategories();
+                renderProducts();
+            });
+            
+            // تحميل المنتجات
+            db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}/menu`).on('value', snapshot => {
+                const data = snapshot.val();
+                if (data) {
+                    products = Object.entries(data).map(([id, item]) => ({
+                        id,
+                        name: item.name,
+                        price: parseFloat(item.price) || 0,
+                        emoji: item.emoji || '☕',
+                        category: item.category || 'all',
+                        active: item.active !== false
+                    })).filter(item => item.active);
+                    
+                    console.log('Products loaded:', products.length);
+                    renderProducts();
+                } else {
+                    products = [];
+                    renderProducts();
+                }
+            });
+        }
+        
+        function renderCategories() {
+            const bar = document.getElementById('categories-bar');
+            bar.innerHTML = categories.map(cat => `
+                <button class="category-btn ${cat.id === currentCategory ? 'active' : ''}" 
+                        onclick="selectCategory('${cat.id}')">
+                    ${cat.emoji} ${cat.name}
+                </button>
+            `).join('');
+        }
+        
+        function selectCategory(catId) {
+            currentCategory = catId;
+            renderCategories();
+            renderProducts();
+        }
+        
+        function renderProducts() {
+            const grid = document.getElementById('products-grid');
+            const filtered = currentCategory === 'all' 
+                ? products 
+                : products.filter(p => p.category === currentCategory);
+            
+            if (filtered.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>لا توجد منتجات</p></div>';
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(p => `
+                <div class="product-card" onclick="addToCart('${p.id}')">
+                    <div class="emoji">${p.emoji}</div>
+                    <div class="name">${p.name}</div>
+                    <div class="price">${p.price.toFixed(3)} ر.ع</div>
+                </div>
+            `).join('');
+        }
+        
+        function addToCart(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            const existing = cart.find(item => item.id === productId);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                cart.push({ ...product, quantity: 1 });
+            }
+            
+            renderCart();
+            playSound();
+        }
+        
+        function updateQuantity(productId, change) {
+            const item = cart.find(i => i.id === productId);
+            if (!item) return;
+            
+            item.quantity += change;
+            if (item.quantity <= 0) {
+                cart = cart.filter(i => i.id !== productId);
+            }
+            
+            renderCart();
+        }
+        
+        function clearCart() {
+            cart = [];
+            renderCart();
+        }
+        
+        function renderCart() {
+            const container = document.getElementById('cart-items');
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            if (cart.length === 0) {
+                container.innerHTML = '<div class="cart-empty"><i class="fas fa-shopping-basket"></i><p>السلة فارغة</p></div>';
+            } else {
+                container.innerHTML = cart.map(item => `
+                    <div class="cart-item">
+                        <span class="emoji">${item.emoji}</span>
+                        <div class="cart-item-info">
+                            <div class="name">${item.name}</div>
+                            <div class="price">${(item.price * item.quantity).toFixed(3)} ر.ع</div>
+                        </div>
+                        <div class="qty-controls">
+                            <button class="qty-btn" onclick="updateQuantity('${item.id}', -1)">-</button>
+                            <span class="qty-num">${item.quantity}</span>
+                            <button class="qty-btn" onclick="updateQuantity('${item.id}', 1)">+</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            document.getElementById('cart-total').textContent = `${total.toFixed(3)} ر.ع`;
+            
+            const hasItems = cart.length > 0;
+            document.getElementById('btn-cash').disabled = !hasItems;
+            document.getElementById('btn-card').disabled = !hasItems;
+            document.getElementById('btn-later').disabled = !hasItems;
+        }
+        
+        function playSound() {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 600;
+            gain.gain.value = 0.1;
+            osc.start();
+            setTimeout(() => osc.stop(), 80);
+        }
+        
+        function processPayment(method) {
+            if (cart.length === 0) return;
+            
+            const tableNumber = document.getElementById('table-number').value.trim() || 'بدون طاولة';
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            const order = {
+                items: cart.map(item => ({
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    emoji: item.emoji
+                })),
+                total: total,
+                tableNumber: tableNumber,
+                paymentMethod: method,
+                status: method === 'later' ? 'pending' : 'paid',
+                workerName: userName,
+                source: 'worker-app',
+                createdAt: new Date().toISOString()
+            };
+            
+            // Save to Firebase
+            db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}/orders`).push(order)
+                .then(() => {
+                    // Print receipt
+                    printReceipt(order);
+                    
+                    // Clear cart
+                    cart = [];
+                    document.getElementById('table-number').value = '';
+                    renderCart();
+                    
+                    const methodText = method === 'cash' ? 'نقداً' : method === 'card' ? 'بطاقة' : 'لاحقاً';
+                    showToast(`تم الدفع ${methodText} ✅`, 'success');
+                })
+                .catch(err => {
+                    console.error(err);
+                    showToast('حدث خطأ', 'error');
+                });
+        }
+        
+        function printReceipt(order) {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US');
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            const orderNum = Math.floor(Math.random() * 9000) + 1000;
+            const paymentText = order.paymentMethod === 'cash' ? 'CASH' : order.paymentMethod === 'card' ? 'CARD' : 'LATER';
+            
+            // بناء نص الفاتورة بتنسيق جميل للطباعة عبر Notepad
+            let receiptText = '';
+            
+            // Header
+            receiptText += '\n';
+            receiptText += '╔══════════════════════════════════╗\n';
+            receiptText += '║                                  ║\n';
+            receiptText += '║        ☕ SHAM COFFEE ☕         ║\n';
+            receiptText += '║           قهوة الشام            ║\n';
+            receiptText += '║                                  ║\n';
+            receiptText += '╚══════════════════════════════════╝\n';
+            receiptText += '\n';
+            
+            // Order Info
+            receiptText += '┌──────────────────────────────────┐\n';
+            receiptText += '│  Order #' + orderNum.toString().padEnd(25) + '│\n';
+            receiptText += '├──────────────────────────────────┤\n';
+            receiptText += '│  Date: ' + dateStr.padEnd(25) + '│\n';
+            receiptText += '│  Time: ' + timeStr.padEnd(25) + '│\n';
+            receiptText += '│  Table: ' + (order.tableNumber || 'No Table').toString().padEnd(24) + '│\n';
+            receiptText += '│  Cashier: ' + order.workerName.substring(0, 22).padEnd(22) + '│\n';
+            receiptText += '└──────────────────────────────────┘\n';
+            receiptText += '\n';
+            
+            // Items Header
+            receiptText += '╔══════════════════════════════════╗\n';
+            receiptText += '║            ORDER ITEMS           ║\n';
+            receiptText += '╠══════════════════════════════════╣\n';
+            
+            // Items
+            order.items.forEach(item => {
+                const emoji = item.emoji || '•';
+                const name = item.name.substring(0, 16).padEnd(16);
+                const qty = ('x' + item.quantity).padStart(3);
+                const price = (item.price * item.quantity).toFixed(3).padStart(7);
+                receiptText += '║ ' + emoji + ' ' + name + qty + ' ' + price + ' OMR ║\n';
+            });
+            
+            receiptText += '╠══════════════════════════════════╣\n';
+            
+            // Total
+            const totalStr = order.total.toFixed(3);
+            receiptText += '║                                  ║\n';
+            receiptText += '║   TOTAL:          ' + totalStr.padStart(7) + ' OMR   ║\n';
+            receiptText += '║   Payment:        ' + paymentText.padStart(7) + '       ║\n';
+            receiptText += '║                                  ║\n';
+            receiptText += '╚══════════════════════════════════╝\n';
+            receiptText += '\n';
+            
+            // Footer
+            receiptText += '┌──────────────────────────────────┐\n';
+            receiptText += '│                                  │\n';
+            receiptText += '│      شكراً لزيارتكم ☕           │\n';
+            receiptText += '│    Thank you for visiting!       │\n';
+            receiptText += '│                                  │\n';
+            receiptText += '│         Oman - مسقط              │\n';
+            receiptText += '│                                  │\n';
+            receiptText += '└──────────────────────────────────┘\n';
+            receiptText += '\n';
+            receiptText += '        ════════════════════        \n';
+            receiptText += '        ' + orderNum + '-' + Date.now().toString().slice(-6) + '        \n';
+            receiptText += '        ════════════════════        \n';
+            receiptText += '\n\n\n\n';
+            
+            // إرسال للطباعة عبر Notepad
+            ipcRenderer.send('print-text', receiptText);
+        }
+        
+        // ==================== TABLES ====================
+        let openTables = {};
+        
+        function loadTables() {
+            db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}/orders`).on('value', snapshot => {
+                const data = snapshot.val();
+                openTables = {};
+                
+                if (data) {
+                    Object.entries(data).forEach(([id, order]) => {
+                        if (order.status === 'pending' && order.tableNumber && order.tableNumber !== 'بدون طاولة') {
+                            const key = order.tableNumber;
+                            if (!openTables[key]) {
+                                openTables[key] = { orders: [], total: 0, items: 0 };
+                            }
+                            openTables[key].orders.push({ id, ...order });
+                            openTables[key].total += parseFloat(order.total) || 0;
+                            openTables[key].items += order.items?.length || 0;
+                        }
+                    });
+                }
+                
+                renderTables();
+                updateTablesBadge();
+            });
+        }
+        
+        function updateTablesBadge() {
+            const count = Object.keys(openTables).length;
+            const badge = document.getElementById('tables-badge');
+            if (count > 0) {
+                badge.style.display = 'block';
+                badge.textContent = count;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        
+        function renderTables() {
+            const grid = document.getElementById('tables-grid');
+            const keys = Object.keys(openTables);
+            
+            if (keys.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><i class="fas fa-chair"></i><p>لا توجد طاولات مفتوحة</p></div>';
+                return;
+            }
+            
+            grid.innerHTML = keys.map(key => {
+                const table = openTables[key];
+                return `
+                    <div class="table-card occupied">
+                        <div class="table-card-header">
+                            <div class="table-number"><i class="fas fa-chair"></i> طاولة ${key}</div>
+                            <span class="table-status occupied">مشغولة</span>
+                        </div>
+                        <div class="table-info">
+                            <div class="table-info-row">
+                                <span>عدد الطلبات</span>
+                                <strong>${table.orders.length}</strong>
+                            </div>
+                            <div class="table-info-row">
+                                <span>الإجمالي</span>
+                                <strong>${table.total.toFixed(3)} ر.ع</strong>
+                            </div>
+                        </div>
+                        <div class="table-actions">
+                            <button class="btn-table pay" onclick="payTable('${key}')">
+                                <i class="fas fa-check"></i> دفع
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function payTable(tableKey) {
+            const table = openTables[tableKey];
+            if (!table || !confirm(`دفع فاتورة طاولة ${tableKey}؟\nالإجمالي: ${table.total.toFixed(3)} ر.ع`)) return;
+            
+            const updates = {};
+            table.orders.forEach(order => {
+                updates[`restaurant-system/restaurants/${RESTAURANT_ID}/orders/${order.id}/status`] = 'paid';
+                updates[`restaurant-system/restaurants/${RESTAURANT_ID}/orders/${order.id}/paidAt`] = new Date().toISOString();
+            });
+            
+            db.ref().update(updates)
+                .then(() => {
+                    // Print table receipt
+                    const allItems = [];
+                    table.orders.forEach(o => {
+                        if (o.items) {
+                            o.items.forEach(item => {
+                                const existing = allItems.find(i => i.name === item.name);
+                                if (existing) existing.quantity += item.quantity;
+                                else allItems.push({ ...item });
+                            });
+                        }
+                    });
+                    
+                    printReceipt({
+                        items: allItems,
+                        total: table.total,
+                        tableNumber: tableKey,
+                        workerName: userName
+                    });
+                    
+                    showToast(`تم دفع طاولة ${tableKey} ✅`, 'success');
+                })
+                .catch(err => {
+                    console.error(err);
+                    showToast('حدث خطأ', 'error');
+                });
+        }
+        
+        // ==================== SESSIONS ====================
+        let rooms = [];
+        
+        function loadSessions() {
+            db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}/rooms`).on('value', snapshot => {
+                const data = snapshot.val();
+                rooms = data ? Object.entries(data).map(([id, room]) => ({ id, ...room })) : [];
+                renderSessions();
+            });
+        }
+        
+        function renderSessions() {
+            const grid = document.getElementById('sessions-grid');
+            
+            if (rooms.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><i class="fas fa-door-open"></i><p>لا توجد غرف</p></div>';
+                return;
+            }
+            
+            grid.innerHTML = rooms.map(room => {
+                const isActive = room.status === 'occupied';
+                return `
+                    <div class="session-card ${isActive ? 'active' : ''}">
+                        <div class="session-header">
+                            <div class="session-name"><i class="fas fa-door-open"></i> ${room.name}</div>
+                            <span class="session-status ${isActive ? 'busy' : 'available'}">
+                                ${isActive ? 'مشغولة' : 'متاحة'}
+                            </span>
+                        </div>
+                        <div class="session-info">
+                            <div class="session-row">
+                                <span>السعر بالساعة</span>
+                                <strong>${(room.pricePerHour || 0).toFixed(3)} ر.ع</strong>
+                            </div>
+                            ${isActive ? `
+                                <div class="session-row">
+                                    <span>بدأت في</span>
+                                    <strong>${room.startTime ? new Date(room.startTime).toLocaleTimeString('ar-SA') : '-'}</strong>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="session-actions">
+                            ${isActive ? `
+                                <button class="btn-session end" onclick="endSession('${room.id}')">
+                                    <i class="fas fa-stop"></i> إنهاء
+                                </button>
+                            ` : `
+                                <button class="btn-session start" onclick="startSession('${room.id}')">
+                                    <i class="fas fa-play"></i> بدء
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function startSession(roomId) {
+            db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}/rooms/${roomId}`).update({
+                status: 'occupied',
+                startTime: new Date().toISOString()
+            }).then(() => {
+                showToast('تم بدء الجلسة ✅', 'success');
+            });
+        }
+        
+        function endSession(roomId) {
+            const room = rooms.find(r => r.id === roomId);
+            if (!room) return;
+            
+            const startTime = new Date(room.startTime);
+            const endTime = new Date();
+            const hours = (endTime - startTime) / (1000 * 60 * 60);
+            const total = hours * (room.pricePerHour || 0);
+            
+            if (!confirm(`إنهاء جلسة ${room.name}؟\nالمدة: ${hours.toFixed(1)} ساعة\nالإجمالي: ${total.toFixed(3)} ر.ع`)) return;
+            
+            // Save session order
+            db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}/orders`).push({
+                items: [{ name: `جلسة ${room.name}`, price: total, quantity: 1, emoji: '🚪' }],
+                total: total,
+                tableNumber: room.name,
+                paymentMethod: 'cash',
+                status: 'paid',
+                workerName: userName,
+                source: 'worker-app',
+                type: 'session',
+                duration: hours,
+                createdAt: new Date().toISOString()
+            });
+            
+            // Reset room
+            db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}/rooms/${roomId}`).update({
+                status: 'available',
+                startTime: null
+            }).then(() => {
+                // Print receipt
+                printReceipt({
+                    items: [{ name: `جلسة ${room.name}`, price: total, quantity: 1, emoji: '🚪' }],
+                    total: total,
+                    tableNumber: room.name,
+                    workerName: userName
+                });
+                showToast('تم إنهاء الجلسة ✅', 'success');
+            });
+        }
+        
+        // Logout
+        function logout() {
+            if (confirm('هل تريد تسجيل الخروج؟')) {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            }
+        }
+        
+        // ==================== MY ORDERS ====================
+        let myOrders = [];
+        let currentViewOrder = null;
+        
+        function loadMyOrders() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}/orders`).on('value', snapshot => {
+                const data = snapshot.val();
+                myOrders = [];
+                
+                if (data) {
+                    Object.entries(data).forEach(([id, order]) => {
+                        const orderDate = new Date(order.createdAt || 0);
+                        // فقط طلبات اليوم + طلبات هذا العامل
+                        if (orderDate >= today && order.workerName === userName) {
+                            myOrders.push({ id, ...order });
+                        }
+                    });
+                }
+                
+                // ترتيب من الأحدث للأقدم
+                myOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                
+                renderMyOrders();
+                updateMyOrdersBadge();
+            });
+            
+            // تحميل الطلبات الملغاة أيضاً
+            db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}/cancelled-orders`).on('value', snapshot => {
+                const data = snapshot.val();
+                
+                if (data) {
+                    Object.entries(data).forEach(([id, order]) => {
+                        const orderDate = new Date(order.cancelledAt || order.createdAt || 0);
+                        // فقط طلبات اليوم + طلبات هذا العامل
+                        if (orderDate >= today && (order.workerName === userName || order.cancelledBy?.name === userName)) {
+                            // التحقق من عدم وجود الطلب مسبقاً
+                            if (!myOrders.find(o => o.id === id)) {
+                                myOrders.push({ id, ...order, status: 'cancelled' });
+                            }
+                        }
+                    });
+                }
+                
+                myOrders.sort((a, b) => new Date(b.createdAt || b.cancelledAt) - new Date(a.createdAt || a.cancelledAt));
+                renderMyOrders();
+            });
+        }
+        
+        function updateMyOrdersBadge() {
+            const count = myOrders.filter(o => o.status !== 'cancelled').length;
+            const badge = document.getElementById('myorders-badge');
+            if (count > 0) {
+                badge.style.display = 'block';
+                badge.textContent = count;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        
+        function renderMyOrders() {
+            const container = document.getElementById('myorders-list');
+            const countEl = document.getElementById('my-orders-count');
+            const totalEl = document.getElementById('my-orders-total');
+            
+            const activeOrders = myOrders.filter(o => o.status !== 'cancelled');
+            const totalAmount = activeOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
+            
+            countEl.textContent = activeOrders.length;
+            totalEl.textContent = totalAmount.toFixed(3);
+            
+            if (myOrders.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <p>لا توجد طلبات اليوم</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = myOrders.map(order => {
+                const orderDate = new Date(order.createdAt || order.cancelledAt || 0);
+                const timeStr = orderDate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+                const itemsCount = order.items ? order.items.reduce((sum, i) => sum + (i.quantity || 1), 0) : 0;
+                const isCancelled = order.status === 'cancelled';
+                
+                const statusClass = isCancelled ? 'cancelled' : (order.status === 'paid' ? 'paid' : 'pending');
+                const statusText = isCancelled ? 'ملغي' : (order.status === 'paid' ? 'مدفوع' : 'معلق');
+                
+                return `
+                    <div class="order-card ${isCancelled ? 'cancelled' : ''}" onclick="viewOrder('${order.id}')">
+                        <div class="order-info">
+                            <div class="order-icon">${isCancelled ? '❌' : '🧾'}</div>
+                            <div class="order-details">
+                                <h4>#${String(order.id).slice(-6)} - ${order.tableNumber || 'بدون طاولة'}</h4>
+                                <p><i class="fas fa-clock"></i> ${timeStr} • ${itemsCount} صنف</p>
+                            </div>
+                        </div>
+                        <div class="order-amount">
+                            <div class="price">${parseFloat(order.total || 0).toFixed(3)}</div>
+                            <div class="status ${statusClass}">${statusText}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function viewOrder(orderId) {
+            const order = myOrders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            currentViewOrder = order;
+            const orderDate = new Date(order.createdAt || order.cancelledAt || 0);
+            const isCancelled = order.status === 'cancelled';
+            
+            let invoiceHTML = `
+                <div class="invoice-preview">
+                    <div class="invoice-header">
+                        <h2>☕ قهوة الشام</h2>
+                        <p>SHAM COFFEE</p>
+                    </div>
+                    
+                    <div class="invoice-row">
+                        <span>رقم الطلب:</span>
+                        <span>#${String(order.id).slice(-6)}</span>
+                    </div>
+                    <div class="invoice-row">
+                        <span>التاريخ:</span>
+                        <span>${orderDate.toLocaleDateString('ar-SA')}</span>
+                    </div>
+                    <div class="invoice-row">
+                        <span>الوقت:</span>
+                        <span>${orderDate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <div class="invoice-row">
+                        <span>الطاولة:</span>
+                        <span>${order.tableNumber || 'بدون طاولة'}</span>
+                    </div>
+                    <div class="invoice-row">
+                        <span>الموظف:</span>
+                        <span>${order.workerName || userName}</span>
+                    </div>
+                    
+                    <div class="invoice-items">
+                        <strong>الأصناف:</strong>
+                        ${order.items ? order.items.map(item => `
+                            <div class="invoice-item">
+                                <span>${item.emoji || ''} ${item.name} x${item.quantity || 1}</span>
+                                <span>${((item.price || 0) * (item.quantity || 1)).toFixed(3)}</span>
+                            </div>
+                        `).join('') : '<p>لا توجد أصناف</p>'}
+                    </div>
+                    
+                    <div class="invoice-total">
+                        <div class="invoice-row">
+                            <span>الإجمالي:</span>
+                            <span style="color: var(--primary);">${parseFloat(order.total || 0).toFixed(3)} ر.ع</span>
+                        </div>
+                    </div>
+                    
+                    <div class="invoice-row">
+                        <span>طريقة الدفع:</span>
+                        <span>${order.paymentMethod === 'cash' ? 'نقدي' : order.paymentMethod === 'card' ? 'بطاقة' : 'آجل'}</span>
+                    </div>
+                    
+                    ${isCancelled ? `
+                        <div class="cancelled-badge">
+                            <strong>❌ تم إلغاء هذه الفاتورة</strong>
+                            ${order.cancelReason ? `<p style="margin-top: 5px; font-size: 12px;">السبب: ${order.cancelReason}</p>` : ''}
+                            ${order.cancelledBy ? `<p style="font-size: 11px; opacity: 0.8;">بواسطة: ${order.cancelledBy.name}</p>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            document.getElementById('order-modal-body').innerHTML = invoiceHTML;
+            
+            // إخفاء أزرار الطباعة والإلغاء إذا كانت ملغاة
+            const printBtn = document.querySelector('.modal-btn.print');
+            const cancelBtn = document.querySelector('.modal-btn.cancel');
+            if (isCancelled) {
+                printBtn.style.display = 'none';
+                cancelBtn.style.display = 'none';
+            } else {
+                printBtn.style.display = 'flex';
+                cancelBtn.style.display = 'flex';
+            }
+            
+            document.getElementById('order-view-modal').classList.add('active');
+        }
+        
+        function closeOrderModal() {
+            document.getElementById('order-view-modal').classList.remove('active');
+            currentViewOrder = null;
+        }
+        
+        function printCurrentOrder() {
+            if (!currentViewOrder) return;
+            printReceipt(currentViewOrder);
+            showToast('جاري طباعة الفاتورة... 🖨️', 'success');
+        }
+        
+        function showCancelDialog() {
+            if (!currentViewOrder) return;
+            document.getElementById('cancel-reason').value = '';
+            document.getElementById('cancel-modal').classList.add('active');
+        }
+        
+        function closeCancelModal() {
+            document.getElementById('cancel-modal').classList.remove('active');
+        }
+        
+        function confirmCancelOrder() {
+            if (!currentViewOrder) return;
+            
+            const reason = document.getElementById('cancel-reason').value.trim();
+            if (!reason) {
+                showToast('يرجى كتابة سبب الإلغاء', 'error');
+                return;
+            }
+            
+            const orderId = currentViewOrder.id;
+            const orderData = { ...currentViewOrder };
+            
+            // إضافة معلومات الإلغاء
+            orderData.status = 'cancelled';
+            orderData.cancelReason = reason;
+            orderData.cancelledAt = new Date().toISOString();
+            orderData.cancelledBy = {
+                name: userName,
+                id: localStorage.getItem('worker_id'),
+                position: userPosition
+            };
+            
+            // نقل الطلب إلى الطلبات الملغاة
+            const updates = {};
+            updates[`restaurant-system/restaurants/${RESTAURANT_ID}/cancelled-orders/${orderId}`] = orderData;
+            updates[`restaurant-system/restaurants/${RESTAURANT_ID}/orders/${orderId}`] = null; // حذف من الطلبات النشطة
+            
+            db.ref().update(updates)
+                .then(() => {
+                    showToast('تم إلغاء الفاتورة بنجاح ✅', 'success');
+                    closeCancelModal();
+                    closeOrderModal();
+                })
+                .catch(err => {
+                    console.error('Error cancelling order:', err);
+                    showToast('حدث خطأ أثناء الإلغاء', 'error');
+                });
+        }
+        
+        // Initialize
+        loadMenu();
+        loadTables();
+        loadSessions();
+        loadMyOrders();
+        renderCart();
+    </script>
+</body>
+</html>

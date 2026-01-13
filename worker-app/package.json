@@ -1,0 +1,33 @@
+{
+  "name": "sham-worker-local",
+  "version": "2.0.0",
+  "description": "تطبيق العمال المحلي - قهوة الشام",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "author": "Sham Coffee",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.shamcoffee.worker.local",
+    "productName": "Sham Worker",
+    "win": {
+      "target": "portable",
+      "icon": "icon.ico"
+    },
+    "portable": {
+      "artifactName": "ShamWorker.exe"
+    },
+    "files": [
+      "**/*",
+      "!dist/**"
+    ]
+  }
+}
+
+
