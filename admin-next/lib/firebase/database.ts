@@ -33,17 +33,36 @@ export interface OrderItem {
   note?: string;
 }
 
+export interface ProductVariation {
+  id: string;
+  name: string;
+  nameEn?: string;
+  price: number;
+  isDefault?: boolean;
+  isActive: boolean;
+  sortOrder: number;
+}
+
 export interface Product {
   id: string;
   name: string;
-  price: number;
-  category: string;
+  nameEn?: string;
   description?: string;
+  descriptionEn?: string;
+  price: number;
+  basePrice?: number;
+  category: string;
+  categoryId?: string;
   image?: string;
   imageUrl?: string;
   active: boolean;
+  isActive?: boolean;
   createdAt?: string;
+  updatedAt?: string;
   emoji?: string;
+  sortOrder?: number;
+  variations?: ProductVariation[];
+  // Legacy fields
   sizes?: Record<string, { name: string; price: number }>;
   shishaTypes?: Record<string, { name: string; price: number; icon?: string }>;
   isShisha?: boolean;
@@ -52,9 +71,15 @@ export interface Product {
 export interface Category {
   id: string;
   name: string;
+  nameEn?: string;
   icon?: string;
+  emoji?: string;
   order: number;
+  sortOrder?: number;
   active: boolean;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Worker {
@@ -164,17 +189,46 @@ export const createProduct = async (product: Omit<Product, 'id'>): Promise<strin
   const newRef = push(ref(database, getPath('menu')));
   await set(newRef, {
     ...product,
+    category: product.categoryId || product.category,
+    categoryId: product.categoryId || product.category,
+    active: product.isActive ?? product.active ?? true,
+    isActive: product.isActive ?? product.active ?? true,
     createdAt: new Date().toISOString(),
   });
   return newRef.key!;
 };
 
 export const updateProduct = async (productId: string, updates: Partial<Product>): Promise<void> => {
-  await update(ref(database, `${getPath('menu')}/${productId}`), updates);
+  const updateData: any = {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  if (updates.categoryId) {
+    updateData.category = updates.categoryId;
+  }
+  if (updates.isActive !== undefined) {
+    updateData.active = updates.isActive;
+  }
+  
+  await update(ref(database, `${getPath('menu')}/${productId}`), updateData);
 };
 
 export const deleteProduct = async (productId: string): Promise<void> => {
   await remove(ref(database, `${getPath('menu')}/${productId}`));
+};
+
+export const bulkUpdateProducts = async (updates: { id: string; data: Partial<Product> }[]): Promise<void> => {
+  const batchUpdates: Record<string, any> = {};
+  
+  updates.forEach(({ id, data }) => {
+    Object.entries(data).forEach(([key, value]) => {
+      batchUpdates[`${getPath('menu')}/${id}/${key}`] = value;
+    });
+    batchUpdates[`${getPath('menu')}/${id}/updatedAt`] = new Date().toISOString();
+  });
+  
+  await update(ref(database), batchUpdates);
 };
 
 // Categories
@@ -186,21 +240,52 @@ export const getCategories = async (): Promise<Category[]> => {
       id,
       ...category,
     }))
-    .sort((a, b) => (a.order || 0) - (b.order || 0));
+    .sort((a, b) => (a.order || a.sortOrder || 0) - (b.order || b.sortOrder || 0));
 };
 
 export const createCategory = async (category: Omit<Category, 'id'>): Promise<string> => {
   const newRef = push(ref(database, getPath('categories')));
-  await set(newRef, category);
+  await set(newRef, {
+    ...category,
+    createdAt: new Date().toISOString(),
+  });
   return newRef.key!;
 };
 
 export const updateCategory = async (categoryId: string, updates: Partial<Category>): Promise<void> => {
-  await update(ref(database, `${getPath('categories')}/${categoryId}`), updates);
+  await update(ref(database, `${getPath('categories')}/${categoryId}`), {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
 };
 
 export const deleteCategory = async (categoryId: string): Promise<void> => {
   await remove(ref(database, `${getPath('categories')}/${categoryId}`));
+};
+
+export const getProductsByCategory = async (categoryId: string): Promise<Product[]> => {
+  const products = await getProducts();
+  return products.filter(p => p.category === categoryId || p.categoryId === categoryId);
+};
+
+export const getCategoryProductCount = async (categoryId: string): Promise<number> => {
+  const products = await getProductsByCategory(categoryId);
+  return products.length;
+};
+
+export const moveProductsToCategory = async (fromCategoryId: string, toCategoryId: string): Promise<void> => {
+  const products = await getProductsByCategory(fromCategoryId);
+  const updates: Record<string, any> = {};
+  
+  products.forEach(product => {
+    updates[`${getPath('menu')}/${product.id}/category`] = toCategoryId;
+    updates[`${getPath('menu')}/${product.id}/categoryId`] = toCategoryId;
+    updates[`${getPath('menu')}/${product.id}/updatedAt`] = new Date().toISOString();
+  });
+  
+  if (Object.keys(updates).length > 0) {
+    await update(ref(database), updates);
+  }
 };
 
 // Workers

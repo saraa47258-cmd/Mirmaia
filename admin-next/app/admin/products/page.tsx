@@ -1,18 +1,60 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getProducts, getCategories, createProduct, updateProduct, deleteProduct, Product, Category } from '@/lib/firebase/database';
+import { 
+  getProducts, 
+  getCategories, 
+  createProduct, 
+  updateProduct, 
+  deleteProduct,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getCategoryProductCount,
+  moveProductsToCategory,
+  Product, 
+  Category 
+} from '@/lib/firebase/database';
 import Topbar from '@/lib/components/Topbar';
-import { Plus, Search, Edit2, Trash2, X } from 'lucide-react';
+import CategoryModal from '@/lib/components/admin/CategoryModal';
+import ProductModal from '@/lib/components/admin/ProductModal';
+import DeleteCategoryModal from '@/lib/components/admin/DeleteCategoryModal';
+import { 
+  Plus, 
+  Search, 
+  Edit2, 
+  Trash2, 
+  FolderPlus,
+  Package,
+  Grid3X3,
+  List,
+  ChevronDown,
+  MoreVertical,
+  Eye,
+  EyeOff
+} from 'lucide-react';
 
-export default function ProductsPage() {
+type ViewMode = 'grid' | 'list';
+type TabMode = 'products' | 'categories';
+
+export default function MenuManagerPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [filterCategory, setFilterCategory] = useState('all');
+  
+  // Filters
   const [search, setSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [activeTab, setActiveTab] = useState<TabMode>('products');
+  
+  // Modals
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<{ category: Category; productCount: number } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -33,48 +75,98 @@ export default function ProductsPage() {
     }
   };
 
-  const handleDelete = async (productId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
-    try {
-      await deleteProduct(productId);
-      await loadData();
-    } catch (error) {
-      console.error('Error deleting product:', error);
+  // Category CRUD
+  const handleSaveCategory = async (data: Partial<Category>) => {
+    if (editingCategory) {
+      await updateCategory(editingCategory.id, data);
+    } else {
+      await createCategory(data as Omit<Category, 'id'>);
     }
+    await loadData();
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  const handleDeleteCategoryClick = async (category: Category) => {
+    const productCount = await getCategoryProductCount(category.id);
+    setDeletingCategory({ category, productCount });
+  };
+
+  const handleConfirmDeleteCategory = async () => {
+    if (!deletingCategory) return;
     
-    const productData: Partial<Product> = {
-      name: formData.get('name') as string,
-      price: parseFloat(formData.get('price') as string),
-      category: formData.get('category') as string,
-      description: formData.get('description') as string || undefined,
-      active: formData.get('active') === 'on',
-      emoji: formData.get('emoji') as string || '☕',
-    };
-
-    try {
-      if (editingProduct) {
-        await updateProduct(editingProduct.id, productData);
-      } else {
-        await createProduct(productData as Omit<Product, 'id'>);
-      }
-      setShowModal(false);
-      setEditingProduct(null);
-      await loadData();
-    } catch (error) {
-      console.error('Error saving product:', error);
+    // Delete all products in this category first
+    const categoryProducts = products.filter(
+      p => p.category === deletingCategory.category.id || p.categoryId === deletingCategory.category.id
+    );
+    for (const product of categoryProducts) {
+      await deleteProduct(product.id);
     }
+    
+    await deleteCategory(deletingCategory.category.id);
+    await loadData();
   };
 
+  const handleMoveProducts = async (toCategoryId: string) => {
+    if (!deletingCategory) return;
+    await moveProductsToCategory(deletingCategory.category.id, toCategoryId);
+  };
+
+  const handleDeactivateCategory = async () => {
+    if (!deletingCategory) return;
+    await updateCategory(deletingCategory.category.id, { isActive: false, active: false });
+    await loadData();
+  };
+
+  // Product CRUD
+  const handleSaveProduct = async (data: Partial<Product>) => {
+    if (editingProduct) {
+      await updateProduct(editingProduct.id, data);
+    } else {
+      await createProduct(data as Omit<Product, 'id'>);
+    }
+    await loadData();
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+    await deleteProduct(productId);
+    await loadData();
+  };
+
+  const handleToggleProductStatus = async (product: Product) => {
+    const newStatus = !(product.isActive ?? product.active);
+    await updateProduct(product.id, { isActive: newStatus, active: newStatus });
+    await loadData();
+  };
+
+  // Filtered data
   const filteredProducts = products.filter((product) => {
-    if (filterCategory !== 'all' && product.category !== filterCategory) return false;
-    if (search && !product.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterCategory !== 'all' && product.category !== filterCategory && product.categoryId !== filterCategory) {
+      return false;
+    }
+    if (filterStatus === 'active' && !(product.isActive ?? product.active)) {
+      return false;
+    }
+    if (filterStatus === 'inactive' && (product.isActive ?? product.active)) {
+      return false;
+    }
+    if (search) {
+      const searchLower = search.toLowerCase();
+      return (
+        product.name.toLowerCase().includes(searchLower) ||
+        product.description?.toLowerCase().includes(searchLower)
+      );
+    }
     return true;
-  });
+  }).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+  const getCategoryName = (categoryId: string) => {
+    const cat = categories.find(c => c.id === categoryId);
+    return cat ? `${cat.icon || cat.emoji || ''} ${cat.name}` : categoryId;
+  };
+
+  const getProductCountForCategory = (categoryId: string) => {
+    return products.filter(p => p.category === categoryId || p.categoryId === categoryId).length;
+  };
 
   if (loading) {
     return (
@@ -91,206 +183,368 @@ export default function ProductsPage() {
           }}></div>
           <p style={{ marginTop: '16px', fontSize: '14px', color: '#64748b' }}>جاري التحميل...</p>
         </div>
+        <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   return (
     <div style={{ minHeight: '100vh' }}>
-      <Topbar title="المنتجات" subtitle="إدارة قائمة المنتجات" />
+      <Topbar title="إدارة القائمة" subtitle="إدارة التصنيفات والمنتجات" />
 
       <div style={{ padding: '24px' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            {/* Search */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '0 14px',
-              height: '44px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              minWidth: '240px',
-            }}>
-              <Search style={{ width: '18px', height: '18px', color: '#94a3b8' }} />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="ابحث عن منتج..."
-                style={{
-                  flex: 1,
-                  border: 'none',
-                  outline: 'none',
-                  fontSize: '14px',
-                  color: '#0f172a',
-                  backgroundColor: 'transparent',
-                }}
-              />
-            </div>
-
-            {/* Category Filter */}
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              style={{
-                padding: '0 16px',
-                height: '44px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                fontSize: '14px',
-                color: '#0f172a',
-                cursor: 'pointer',
-                minWidth: '160px',
-              }}
-            >
-              <option value="all">جميع التصنيفات</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.icon} {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Add Button */}
+        {/* Tabs */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '24px',
+          padding: '4px',
+          backgroundColor: '#f1f5f9',
+          borderRadius: '12px',
+          width: 'fit-content',
+        }}>
           <button
-            onClick={() => {
-              setEditingProduct(null);
-              setShowModal(true);
-            }}
+            onClick={() => setActiveTab('products')}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '0 20px',
-              height: '44px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              padding: '10px 20px',
+              borderRadius: '10px',
               border: 'none',
-              borderRadius: '12px',
               fontSize: '14px',
               fontWeight: 600,
-              color: '#ffffff',
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
+              backgroundColor: activeTab === 'products' ? '#ffffff' : 'transparent',
+              color: activeTab === 'products' ? '#0f172a' : '#64748b',
+              boxShadow: activeTab === 'products' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
             }}
           >
-            <Plus style={{ width: '18px', height: '18px' }} />
-            إضافة منتج
+            <Package style={{ width: '18px', height: '18px' }} />
+            المنتجات ({products.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('categories')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              borderRadius: '10px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              backgroundColor: activeTab === 'categories' ? '#ffffff' : 'transparent',
+              color: activeTab === 'categories' ? '#0f172a' : '#64748b',
+              boxShadow: activeTab === 'categories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            }}
+          >
+            <Grid3X3 style={{ width: '18px', height: '18px' }} />
+            التصنيفات ({categories.length})
           </button>
         </div>
 
-        {/* Products Table */}
-        <div style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '16px',
-          border: '1px solid #e2e8f0',
-          overflow: 'hidden',
-        }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f8fafc' }}>
-                <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>المنتج</th>
-                <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>التصنيف</th>
-                <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>السعر</th>
-                <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>الحالة</th>
-                <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ padding: '60px 20px', textAlign: 'center', fontSize: '14px', color: '#64748b' }}>
-                    لا توجد منتجات
-                  </td>
-                </tr>
-              ) : (
-                filteredProducts.map((product, index) => (
-                  <tr 
-                    key={product.id} 
-                    style={{ 
-                      borderTop: index > 0 ? '1px solid #f1f5f9' : 'none',
+        {/* Products Tab */}
+        {activeTab === 'products' && (
+          <>
+            {/* Toolbar */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '16px',
+              marginBottom: '20px',
+              flexWrap: 'wrap',
+            }}>
+              <div style={{ display: 'flex', gap: '12px', flex: 1, flexWrap: 'wrap' }}>
+                {/* Search */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '0 14px',
+                  height: '44px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  minWidth: '220px',
+                  flex: 1,
+                  maxWidth: '320px',
+                }}>
+                  <Search style={{ width: '18px', height: '18px', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="ابحث عن منتج..."
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      outline: 'none',
+                      fontSize: '14px',
+                      color: '#0f172a',
+                      backgroundColor: 'transparent',
+                    }}
+                  />
+                </div>
+
+                {/* Category Filter */}
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  style={{
+                    padding: '0 16px',
+                    height: '44px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    color: '#0f172a',
+                    cursor: 'pointer',
+                    minWidth: '160px',
+                  }}
+                >
+                  <option value="all">جميع التصنيفات</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.icon || cat.emoji} {cat.name}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Status Filter */}
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value as any)}
+                  style={{
+                    padding: '0 16px',
+                    height: '44px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    color: '#0f172a',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="all">الكل</option>
+                  <option value="active">نشط</option>
+                  <option value="inactive">غير نشط</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {/* View Toggle */}
+                <div style={{
+                  display: 'flex',
+                  backgroundColor: '#f1f5f9',
+                  borderRadius: '10px',
+                  padding: '4px',
+                }}>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    style={{
+                      padding: '8px',
+                      backgroundColor: viewMode === 'grid' ? '#ffffff' : 'transparent',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      color: viewMode === 'grid' ? '#6366f1' : '#64748b',
                     }}
                   >
-                    <td style={{ padding: '16px 20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Grid3X3 style={{ width: '18px', height: '18px' }} />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    style={{
+                      padding: '8px',
+                      backgroundColor: viewMode === 'list' ? '#ffffff' : 'transparent',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      color: viewMode === 'list' ? '#6366f1' : '#64748b',
+                    }}
+                  >
+                    <List style={{ width: '18px', height: '18px' }} />
+                  </button>
+                </div>
+
+                {/* Add Product Button */}
+                <button
+                  onClick={() => {
+                    setEditingProduct(null);
+                    setShowProductModal(true);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '0 20px',
+                    height: '44px',
+                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
+                  }}
+                >
+                  <Plus style={{ width: '18px', height: '18px' }} />
+                  إضافة منتج
+                </button>
+              </div>
+            </div>
+
+            {/* Products Grid/List */}
+            {filteredProducts.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '60px 20px',
+                backgroundColor: '#ffffff',
+                borderRadius: '20px',
+                border: '1px solid #e2e8f0',
+              }}>
+                <Package style={{ width: '48px', height: '48px', color: '#94a3b8', margin: '0 auto 16px' }} />
+                <p style={{ fontSize: '16px', fontWeight: 600, color: '#475569' }}>لا توجد منتجات</p>
+                <p style={{ fontSize: '14px', color: '#94a3b8', marginTop: '4px' }}>أضف منتجات جديدة للبدء</p>
+              </div>
+            ) : viewMode === 'grid' ? (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: '20px',
+              }}>
+                {filteredProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      border: '1px solid #e2e8f0',
+                      opacity: (product.isActive ?? product.active) ? 1 : 0.6,
+                    }}
+                  >
+                    {/* Image */}
+                    <div style={{
+                      height: '140px',
+                      backgroundColor: '#f8fafc',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
+                    }}>
+                      {product.imageUrl || product.image ? (
+                        <img
+                          src={product.imageUrl || product.image}
+                          alt={product.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: '48px' }}>{product.emoji || '☕'}</span>
+                      )}
+                      
+                      {/* Variations Badge */}
+                      {product.variations && product.variations.length > 0 && (
                         <div style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '12px',
-                          backgroundColor: '#f8fafc',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '20px',
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
+                          padding: '4px 10px',
+                          backgroundColor: '#6366f1',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#ffffff',
                         }}>
-                          {product.emoji || '☕'}
+                          {product.variations.length} خيارات
                         </div>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div style={{ padding: '16px' }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: '8px',
+                      }}>
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{product.name}</div>
-                          {product.description && (
-                            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {product.description}
-                            </div>
-                          )}
+                          <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
+                            {product.name}
+                          </h3>
+                          <p style={{ fontSize: '12px', color: '#94a3b8' }}>
+                            {getCategoryName(product.category || product.categoryId || '')}
+                          </p>
+                        </div>
+                        <div style={{
+                          fontSize: '16px',
+                          fontWeight: 700,
+                          color: '#16a34a',
+                        }}>
+                          {product.price.toFixed(3)}
                         </div>
                       </div>
-                    </td>
-                    <td style={{ padding: '16px 20px', fontSize: '14px', color: '#475569' }}>
-                      {categories.find((c) => c.id === product.category)?.name || product.category}
-                    </td>
-                    <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
-                      {product.price.toFixed(3)} ر.ع
-                    </td>
-                    <td style={{ padding: '16px 20px' }}>
-                      <span style={{
-                        display: 'inline-flex',
-                        padding: '6px 12px',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        backgroundColor: product.active ? '#dcfce7' : '#f1f5f9',
-                        color: product.active ? '#16a34a' : '#64748b',
+
+                      {/* Actions */}
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        marginTop: '12px',
+                        paddingTop: '12px',
+                        borderTop: '1px solid #f1f5f9',
                       }}>
-                        {product.active ? 'نشط' : 'غير نشط'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '16px 20px' }}>
-                      <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           onClick={() => {
                             setEditingProduct(product);
-                            setShowModal(true);
+                            setShowProductModal(true);
                           }}
                           style={{
-                            width: '36px',
-                            height: '36px',
+                            flex: 1,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            gap: '6px',
+                            padding: '10px',
                             backgroundColor: '#f8fafc',
                             border: '1px solid #e2e8f0',
                             borderRadius: '10px',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            color: '#475569',
                             cursor: 'pointer',
-                            color: '#64748b',
                           }}
                         >
-                          <Edit2 style={{ width: '16px', height: '16px' }} />
+                          <Edit2 style={{ width: '14px', height: '14px' }} />
+                          تعديل
                         </button>
                         <button
-                          onClick={() => handleDelete(product.id)}
+                          onClick={() => handleToggleProductStatus(product)}
                           style={{
-                            width: '36px',
-                            height: '36px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            padding: '10px',
+                            backgroundColor: (product.isActive ?? product.active) ? '#dcfce7' : '#f1f5f9',
+                            border: 'none',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            color: (product.isActive ?? product.active) ? '#16a34a' : '#94a3b8',
+                          }}
+                        >
+                          {(product.isActive ?? product.active) ? (
+                            <Eye style={{ width: '16px', height: '16px' }} />
+                          ) : (
+                            <EyeOff style={{ width: '16px', height: '16px' }} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(product.id)}
+                          style={{
+                            padding: '10px',
                             backgroundColor: '#fef2f2',
-                            border: '1px solid #fecaca',
+                            border: 'none',
                             borderRadius: '10px',
                             cursor: 'pointer',
                             color: '#dc2626',
@@ -299,253 +553,320 @@ export default function ProductsPage() {
                           <Trash2 style={{ width: '16px', height: '16px' }} />
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* List View */
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                border: '1px solid #e2e8f0',
+                overflow: 'hidden',
+              }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8fafc' }}>
+                      <th style={{ padding: '14px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>المنتج</th>
+                      <th style={{ padding: '14px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>التصنيف</th>
+                      <th style={{ padding: '14px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>السعر</th>
+                      <th style={{ padding: '14px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>الخيارات</th>
+                      <th style={{ padding: '14px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>الحالة</th>
+                      <th style={{ padding: '14px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>الإجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.map((product, index) => (
+                      <tr key={product.id} style={{
+                        borderTop: index > 0 ? '1px solid #f1f5f9' : 'none',
+                        opacity: (product.isActive ?? product.active) ? 1 : 0.6,
+                      }}>
+                        <td style={{ padding: '14px 20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                              width: '44px',
+                              height: '44px',
+                              borderRadius: '10px',
+                              backgroundColor: '#f8fafc',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                            }}>
+                              {product.imageUrl || product.image ? (
+                                <img src={product.imageUrl || product.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <span style={{ fontSize: '22px' }}>{product.emoji || '☕'}</span>
+                              )}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{product.name}</div>
+                              {product.description && (
+                                <div style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {product.description}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 20px', fontSize: '14px', color: '#475569' }}>
+                          {getCategoryName(product.category || product.categoryId || '')}
+                        </td>
+                        <td style={{ padding: '14px 20px', fontSize: '14px', fontWeight: 600, color: '#16a34a' }}>
+                          {product.price.toFixed(3)} ر.ع
+                        </td>
+                        <td style={{ padding: '14px 20px', fontSize: '13px', color: '#64748b' }}>
+                          {product.variations?.length || 0} خيار
+                        </td>
+                        <td style={{ padding: '14px 20px' }}>
+                          <span style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            backgroundColor: (product.isActive ?? product.active) ? '#dcfce7' : '#f1f5f9',
+                            color: (product.isActive ?? product.active) ? '#16a34a' : '#64748b',
+                          }}>
+                            {(product.isActive ?? product.active) ? 'نشط' : 'غير نشط'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 20px' }}>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              onClick={() => {
+                                setEditingProduct(product);
+                                setShowProductModal(true);
+                              }}
+                              style={{
+                                padding: '8px',
+                                backgroundColor: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                color: '#64748b',
+                              }}
+                            >
+                              <Edit2 style={{ width: '14px', height: '14px' }} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProduct(product.id)}
+                              style={{
+                                padding: '8px',
+                                backgroundColor: '#fef2f2',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                color: '#dc2626',
+                              }}
+                            >
+                              <Trash2 style={{ width: '14px', height: '14px' }} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
 
-      {/* Modal */}
-      {showModal && (
-        <div 
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            padding: '20px',
-          }}
-          onClick={() => {
-            setShowModal(false);
-            setEditingProduct(null);
-          }}
-        >
-          <div 
-            style={{
-              width: '100%',
-              maxWidth: '480px',
-              backgroundColor: '#ffffff',
-              borderRadius: '20px',
-              overflow: 'hidden',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
+        {/* Categories Tab */}
+        {activeTab === 'categories' && (
+          <>
+            {/* Toolbar */}
             <div style={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '20px 24px',
-              borderBottom: '1px solid #e2e8f0',
+              justifyContent: 'flex-end',
+              marginBottom: '20px',
             }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                {editingProduct ? 'تعديل منتج' : 'إضافة منتج جديد'}
-              </h2>
               <button
                 onClick={() => {
-                  setShowModal(false);
-                  setEditingProduct(null);
+                  setEditingCategory(null);
+                  setShowCategoryModal(true);
                 }}
                 style={{
-                  width: '36px',
-                  height: '36px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#f8fafc',
+                  gap: '8px',
+                  padding: '0 20px',
+                  height: '44px',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                   border: 'none',
-                  borderRadius: '10px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: '#ffffff',
                   cursor: 'pointer',
-                  color: '#64748b',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
                 }}
               >
-                <X style={{ width: '18px', height: '18px' }} />
+                <FolderPlus style={{ width: '18px', height: '18px' }} />
+                إضافة تصنيف
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
-              <div style={{ display: 'grid', gap: '20px' }}>
-                {/* Name */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-                    اسم المنتج
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    defaultValue={editingProduct?.name}
-                    required
+            {/* Categories Grid */}
+            {categories.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '60px 20px',
+                backgroundColor: '#ffffff',
+                borderRadius: '20px',
+                border: '1px solid #e2e8f0',
+              }}>
+                <Grid3X3 style={{ width: '48px', height: '48px', color: '#94a3b8', margin: '0 auto 16px' }} />
+                <p style={{ fontSize: '16px', fontWeight: 600, color: '#475569' }}>لا توجد تصنيفات</p>
+                <p style={{ fontSize: '14px', color: '#94a3b8', marginTop: '4px' }}>أضف تصنيفات لتنظيم المنتجات</p>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: '16px',
+              }}>
+                {categories.map((category) => (
+                  <div
+                    key={category.id}
                     style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      fontSize: '14px',
+                      backgroundColor: '#ffffff',
+                      borderRadius: '16px',
+                      padding: '20px',
                       border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-
-                {/* Price & Emoji */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-                      السعر (ر.ع)
-                    </label>
-                    <input
-                      type="number"
-                      name="price"
-                      step="0.001"
-                      defaultValue={editingProduct?.price}
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        fontSize: '14px',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '12px',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-                      الأيقونة
-                    </label>
-                    <input
-                      type="text"
-                      name="emoji"
-                      defaultValue={editingProduct?.emoji || '☕'}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        fontSize: '14px',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '12px',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Category */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-                    التصنيف
-                  </label>
-                  <select
-                    name="category"
-                    defaultValue={editingProduct?.category}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      fontSize: '14px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      outline: 'none',
-                      cursor: 'pointer',
+                      opacity: (category.isActive ?? category.active) ? 1 : 0.6,
                     }}
                   >
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '16px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '12px',
+                          backgroundColor: '#f8fafc',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '24px',
+                        }}>
+                          {category.icon || category.emoji || '📦'}
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+                            {category.name}
+                          </h3>
+                          {category.nameEn && (
+                            <p style={{ fontSize: '12px', color: '#94a3b8' }}>{category.nameEn}</p>
+                          )}
+                        </div>
+                      </div>
+                      <span style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        backgroundColor: (category.isActive ?? category.active) ? '#dcfce7' : '#f1f5f9',
+                        color: (category.isActive ?? category.active) ? '#16a34a' : '#64748b',
+                      }}>
+                        {(category.isActive ?? category.active) ? 'نشط' : 'غير نشط'}
+                      </span>
+                    </div>
 
-                {/* Description */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-                    الوصف
-                  </label>
-                  <textarea
-                    name="description"
-                    defaultValue={editingProduct?.description}
-                    rows={3}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      fontSize: '14px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      outline: 'none',
-                      resize: 'none',
-                    }}
-                  />
-                </div>
-
-                {/* Active */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <input
-                    type="checkbox"
-                    name="active"
-                    id="active"
-                    defaultChecked={editingProduct?.active !== false}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="active" style={{ fontSize: '14px', color: '#475569', cursor: 'pointer' }}>
-                    نشط
-                  </label>
-                </div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}>
+                      <div style={{ fontSize: '13px', color: '#64748b' }}>
+                        {getProductCountForCategory(category.id)} منتج
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          onClick={() => {
+                            setEditingCategory(category);
+                            setShowCategoryModal(true);
+                          }}
+                          style={{
+                            padding: '8px 14px',
+                            backgroundColor: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            color: '#475569',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          <Edit2 style={{ width: '14px', height: '14px' }} />
+                          تعديل
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCategoryClick(category)}
+                          style={{
+                            padding: '8px',
+                            backgroundColor: '#fef2f2',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            color: '#dc2626',
+                          }}
+                        >
+                          <Trash2 style={{ width: '14px', height: '14px' }} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
+            )}
+          </>
+        )}
+      </div>
 
-              {/* Buttons */}
-              <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                <button
-                  type="submit"
-                  style={{
-                    flex: 1,
-                    padding: '14px',
-                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    color: '#ffffff',
-                    cursor: 'pointer',
-                  }}
-                >
-                  حفظ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditingProduct(null);
-                  }}
-                  style={{
-                    padding: '14px 24px',
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    color: '#475569',
-                    cursor: 'pointer',
-                  }}
-                >
-                  إلغاء
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {/* Modals */}
+      {showCategoryModal && (
+        <CategoryModal
+          category={editingCategory}
+          onClose={() => {
+            setShowCategoryModal(false);
+            setEditingCategory(null);
+          }}
+          onSave={handleSaveCategory}
+          existingCategories={categories}
+        />
       )}
 
-      <style jsx>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      {showProductModal && (
+        <ProductModal
+          product={editingProduct}
+          categories={categories}
+          onClose={() => {
+            setShowProductModal(false);
+            setEditingProduct(null);
+          }}
+          onSave={handleSaveProduct}
+        />
+      )}
+
+      {deletingCategory && (
+        <DeleteCategoryModal
+          category={deletingCategory.category}
+          productCount={deletingCategory.productCount}
+          categories={categories}
+          onClose={() => setDeletingCategory(null)}
+          onDelete={handleConfirmDeleteCategory}
+          onMoveProducts={handleMoveProducts}
+          onDeactivate={handleDeactivateCategory}
+        />
+      )}
     </div>
   );
 }
