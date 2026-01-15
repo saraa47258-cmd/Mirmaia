@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Category } from '@/lib/firebase/database';
-import { X, Save } from 'lucide-react';
+import { uploadCategoryImage } from '@/lib/firebase/storage';
+import { X, Save, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 interface CategoryModalProps {
   category: Category | null;
@@ -15,12 +16,15 @@ const EMOJI_OPTIONS = ['☕', '🍵', '🧃', '🥤', '🍹', '🥛', '🍩', '�
 
 export default function CategoryModal({ category, onClose, onSave, existingCategories }: CategoryModalProps) {
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     name: '',
     nameEn: '',
     icon: '📦',
+    imageUrl: '',
     sortOrder: 0,
     isActive: true,
   });
@@ -31,11 +35,11 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
         name: category.name || '',
         nameEn: category.nameEn || '',
         icon: category.icon || category.emoji || '📦',
+        imageUrl: (category as any).imageUrl || '',
         sortOrder: category.sortOrder || category.order || 0,
         isActive: category.isActive ?? category.active ?? true,
       });
     } else {
-      // Set default sort order for new category
       const maxOrder = Math.max(...existingCategories.map(c => c.sortOrder || c.order || 0), 0);
       setFormData(prev => ({ ...prev, sortOrder: maxOrder + 1 }));
     }
@@ -56,6 +60,38 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      setErrors({ ...errors, image: 'يجب اختيار صورة' });
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors({ ...errors, image: 'حجم الصورة يجب أن يكون أقل من 5 ميجا' });
+      return;
+    }
+    
+    setUploading(true);
+    setErrors({ ...errors, image: '' });
+    
+    try {
+      const imageUrl = await uploadCategoryImage(file, category?.id);
+      setFormData({ ...formData, imageUrl });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      setErrors({ ...errors, image: 'حدث خطأ في رفع الصورة' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData({ ...formData, imageUrl: '' });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -68,11 +104,12 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
         nameEn: formData.nameEn.trim() || undefined,
         icon: formData.icon,
         emoji: formData.icon,
+        imageUrl: formData.imageUrl || undefined,
         sortOrder: formData.sortOrder,
         order: formData.sortOrder,
         isActive: formData.isActive,
         active: formData.isActive,
-      });
+      } as any);
       onClose();
     } catch (error) {
       console.error('Error saving category:', error);
@@ -100,10 +137,12 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: '480px',
+          maxWidth: '520px',
           backgroundColor: '#ffffff',
           borderRadius: '20px',
           overflow: 'hidden',
+          maxHeight: '90vh',
+          overflowY: 'auto',
         }}
       >
         {/* Header */}
@@ -113,6 +152,10 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
           justifyContent: 'space-between',
           padding: '20px 24px',
           borderBottom: '1px solid #e2e8f0',
+          position: 'sticky',
+          top: 0,
+          backgroundColor: '#ffffff',
+          zIndex: 10,
         }}>
           <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
             {category ? 'تعديل التصنيف' : 'إضافة تصنيف جديد'}
@@ -152,39 +195,153 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
           )}
 
           <div style={{ display: 'grid', gap: '20px' }}>
-            {/* Icon */}
+            {/* Image Upload */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-                الأيقونة
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '12px' }}>
+                صورة التصنيف
               </label>
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '8px',
-              }}>
-                {EMOJI_OPTIONS.map((emoji) => (
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                {/* Preview */}
+                <div style={{
+                  width: '100px',
+                  height: '100px',
+                  borderRadius: '16px',
+                  backgroundColor: '#f8fafc',
+                  border: '2px dashed #e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  position: 'relative',
+                }}>
+                  {formData.imageUrl ? (
+                    <>
+                      <img
+                        src={formData.imageUrl}
+                        alt="Preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          left: '4px',
+                          width: '28px',
+                          height: '28px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: 'rgba(220, 38, 38, 0.9)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          color: '#ffffff',
+                        }}
+                      >
+                        <Trash2 style={{ width: '14px', height: '14px' }} />
+                      </button>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '40px' }}>{formData.icon}</span>
+                  )}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: 'none' }}
+                  />
                   <button
-                    key={emoji}
                     type="button"
-                    onClick={() => setFormData({ ...formData, icon: emoji })}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
                     style={{
-                      width: '44px',
-                      height: '44px',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '20px',
-                      backgroundColor: formData.icon === emoji ? '#eef2ff' : '#f8fafc',
-                      border: formData.icon === emoji ? '2px solid #6366f1' : '1px solid #e2e8f0',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
+                      gap: '8px',
+                      padding: '12px 20px',
+                      backgroundColor: '#6366f1',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      color: '#ffffff',
+                      cursor: uploading ? 'not-allowed' : 'pointer',
+                      marginBottom: '8px',
+                      opacity: uploading ? 0.7 : 1,
                     }}
                   >
-                    {emoji}
+                    {uploading ? (
+                      <>
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          border: '2px solid rgba(255,255,255,0.3)',
+                          borderTopColor: '#ffffff',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite',
+                        }} />
+                        جاري الرفع...
+                      </>
+                    ) : (
+                      <>
+                        <Upload style={{ width: '18px', height: '18px' }} />
+                        رفع صورة
+                      </>
+                    )}
                   </button>
-                ))}
+                  <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+                    JPG, PNG أو GIF - الحد الأقصى 5 ميجا
+                  </p>
+                  {errors.image && (
+                    <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>{errors.image}</p>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Icon (if no image) */}
+            {!formData.imageUrl && (
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                  الأيقونة <span style={{ color: '#94a3b8', fontWeight: 400 }}>(بديل الصورة)</span>
+                </label>
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                }}>
+                  {EMOJI_OPTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, icon: emoji })}
+                      style={{
+                        width: '44px',
+                        height: '44px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '20px',
+                        backgroundColor: formData.icon === emoji ? '#eef2ff' : '#f8fafc',
+                        border: formData.icon === emoji ? '2px solid #6366f1' : '1px solid #e2e8f0',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Name AR */}
             <div>
@@ -195,6 +352,7 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="مثال: المشروبات الساخنة"
                 style={{
                   width: '100%',
                   padding: '12px 16px',
@@ -218,7 +376,7 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
                 type="text"
                 value={formData.nameEn}
                 onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
-                placeholder="Category Name"
+                placeholder="Hot Drinks"
                 dir="ltr"
                 style={{
                   width: '100%',
@@ -263,7 +421,7 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
                 id="isActive"
                 checked={formData.isActive}
                 onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#6366f1' }}
               />
               <label htmlFor="isActive" style={{ fontSize: '14px', color: '#475569', cursor: 'pointer' }}>
                 تصنيف نشط
@@ -275,7 +433,7 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
           <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || uploading}
               style={{
                 flex: 1,
                 display: 'flex',
@@ -289,8 +447,8 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
                 fontSize: '14px',
                 fontWeight: 600,
                 color: '#ffffff',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.7 : 1,
+                cursor: (loading || uploading) ? 'not-allowed' : 'pointer',
+                opacity: (loading || uploading) ? 0.7 : 1,
               }}
             >
               <Save style={{ width: '18px', height: '18px' }} />
@@ -314,8 +472,13 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
             </button>
           </div>
         </form>
+
+        <style jsx>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     </div>
   );
 }
-
