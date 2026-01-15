@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { getProducts, getCategories, createOrder, listenToOrder, Product, Category, OrderItem } from '@/lib/firebase/database';
+import { getProducts, getCategories, createOrder, listenToOrder, Product, Category, OrderItem, ProductVariation } from '@/lib/firebase/database';
 import { getCurrentUser } from '@/lib/auth';
 import Topbar from '@/lib/components/Topbar';
 import CategoryTabs from '@/lib/components/menu/CategoryTabs';
@@ -10,6 +10,7 @@ import ProductModal from '@/lib/components/menu/ProductModal';
 import SearchBar from '@/lib/components/menu/SearchBar';
 import CartSidebar, { CartItem } from '@/lib/components/menu/CartSidebar';
 import OrderSuccess from '@/lib/components/menu/OrderSuccess';
+import VariationSelector from '@/lib/components/menu/VariationSelector';
 import { ShoppingCart, Coffee, Package } from 'lucide-react';
 
 export default function StaffMenuPage() {
@@ -19,6 +20,9 @@ export default function StaffMenuPage() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  
+  // Variation selector
+  const [variationProduct, setVariationProduct] = useState<Product | null>(null);
   
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -79,72 +83,106 @@ export default function StaffMenuPage() {
     return categories.find(c => c.id === categoryId);
   };
 
+  // Generate cart item ID (unique for product + variation combo)
+  const generateCartItemId = (productId: string, variationId?: string) => {
+    return variationId ? `${productId}_${variationId}` : productId;
+  };
+
   // Cart functions
-  const getCartItem = (productId: string) => {
-    return cart.find(item => item.product.id === productId);
+  const getCartItem = (productId: string, variationId?: string) => {
+    const cartItemId = generateCartItemId(productId, variationId);
+    return cart.find(item => item.cartItemId === cartItemId);
   };
 
   const getQuantity = (productId: string) => {
-    return getCartItem(productId)?.quantity || 0;
+    // Get total quantity for a product (all variations)
+    return cart
+      .filter(item => item.product.id === productId)
+      .reduce((sum, item) => sum + item.quantity, 0);
   };
 
   const getNote = (productId: string) => {
-    return getCartItem(productId)?.note || '';
+    const item = cart.find(item => item.product.id === productId);
+    return item?.note || '';
   };
 
-  const addToCart = useCallback((product: Product) => {
+  // Add to cart (with optional variation)
+  const addToCart = useCallback((product: Product, variation?: ProductVariation, notes?: string) => {
+    const cartItemId = generateCartItemId(product.id, variation?.id);
+    
     setCart((prev) => {
-      const existing = prev.find(item => item.product.id === product.id);
+      const existing = prev.find(item => item.cartItemId === cartItemId);
       if (existing) {
         return prev.map(item =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+          item.cartItemId === cartItemId
+            ? { ...item, quantity: item.quantity + 1, note: notes || item.note }
             : item
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { 
+        product, 
+        quantity: 1, 
+        cartItemId,
+        variation,
+        note: notes,
+      }];
     });
   }, []);
 
-  const incrementItem = useCallback((product: Product) => {
+  // Handle product click - open variation selector if has variations
+  const handleSelectVariation = useCallback((product: Product) => {
+    setVariationProduct(product);
+  }, []);
+
+  // Handle add from variation selector
+  const handleAddWithVariation = useCallback((product: Product, variation: ProductVariation, notes?: string) => {
+    addToCart(product, variation, notes);
+    setVariationProduct(null);
+  }, [addToCart]);
+
+  const incrementItem = useCallback((cartItemId: string) => {
     setCart((prev) =>
       prev.map(item =>
-        item.product.id === product.id
+        item.cartItemId === cartItemId
           ? { ...item, quantity: item.quantity + 1 }
           : item
       )
     );
   }, []);
 
-  const decrementItem = useCallback((product: Product) => {
+  const decrementItem = useCallback((cartItemId: string) => {
     setCart((prev) => {
-      const existing = prev.find(item => item.product.id === product.id);
+      const existing = prev.find(item => item.cartItemId === cartItemId);
       if (existing && existing.quantity <= 1) {
-        return prev.filter(item => item.product.id !== product.id);
+        return prev.filter(item => item.cartItemId !== cartItemId);
       }
       return prev.map(item =>
-        item.product.id === product.id
+        item.cartItemId === cartItemId
           ? { ...item, quantity: item.quantity - 1 }
           : item
       );
     });
   }, []);
 
-  const removeItem = useCallback((productId: string) => {
-    setCart((prev) => prev.filter(item => item.product.id !== productId));
+  const removeItem = useCallback((cartItemId: string) => {
+    setCart((prev) => prev.filter(item => item.cartItemId !== cartItemId));
   }, []);
 
-  const updateNote = useCallback((productId: string, note: string) => {
+  const updateNote = useCallback((cartItemId: string, note: string) => {
     setCart((prev) =>
       prev.map(item =>
-        item.product.id === productId
+        item.cartItemId === cartItemId
           ? { ...item, note }
           : item
       )
     );
   }, []);
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  // Calculate cart total with variations
+  const cartTotal = cart.reduce((sum, item) => {
+    const price = item.variation ? item.variation.price : item.product.price;
+    return sum + (price * item.quantity);
+  }, 0);
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   // Submit order
@@ -153,15 +191,23 @@ export default function StaffMenuPage() {
 
     setIsSubmitting(true);
     try {
-      const orderItems: OrderItem[] = cart.map(item => ({
-        id: item.product.id,
-        name: item.product.name,
-        price: item.product.price,
-        quantity: item.quantity,
-        itemTotal: item.product.price * item.quantity,
-        emoji: item.product.emoji,
-        note: item.note,
-      }));
+      const orderItems: OrderItem[] = cart.map(item => {
+        const price = item.variation ? item.variation.price : item.product.price;
+        return {
+          id: item.product.id,
+          name: item.product.name,
+          price: price,
+          quantity: item.quantity,
+          itemTotal: price * item.quantity,
+          emoji: item.product.emoji,
+          notes: item.note,
+          variation: item.variation ? {
+            id: item.variation.id,
+            name: item.variation.name,
+            price: item.variation.price,
+          } : undefined,
+        };
+      });
 
       const orderId = await createOrder({
         items: orderItems,
@@ -308,9 +354,18 @@ export default function StaffMenuPage() {
                 onViewDetails={setSelectedProduct}
                 isStaffMode={true}
                 quantity={getQuantity(product.id)}
-                onAddToCart={addToCart}
-                onIncrement={incrementItem}
-                onDecrement={decrementItem}
+                onAddToCart={(p) => addToCart(p)}
+                onIncrement={(p) => {
+                  // Find first cart item for this product
+                  const item = cart.find(i => i.product.id === p.id);
+                  if (item) incrementItem(item.cartItemId);
+                }}
+                onDecrement={(p) => {
+                  // Find first cart item for this product
+                  const item = cart.find(i => i.product.id === p.id);
+                  if (item) decrementItem(item.cartItemId);
+                }}
+                onSelectVariation={handleSelectVariation}
               />
             ))}
           </div>
@@ -373,10 +428,31 @@ export default function StaffMenuPage() {
           isStaffMode={true}
           quantity={getQuantity(selectedProduct.id)}
           note={getNote(selectedProduct.id)}
-          onAddToCart={addToCart}
-          onIncrement={incrementItem}
-          onDecrement={decrementItem}
-          onNoteChange={updateNote}
+          onAddToCart={(p, v, n) => {
+            addToCart(p, v, n);
+            setSelectedProduct(null);
+          }}
+          onIncrement={(p) => {
+            const item = cart.find(i => i.product.id === p.id);
+            if (item) incrementItem(item.cartItemId);
+          }}
+          onDecrement={(p) => {
+            const item = cart.find(i => i.product.id === p.id);
+            if (item) decrementItem(item.cartItemId);
+          }}
+          onNoteChange={(id, note) => {
+            const item = cart.find(i => i.product.id === id);
+            if (item) updateNote(item.cartItemId, note);
+          }}
+        />
+      )}
+
+      {/* Variation Selector */}
+      {variationProduct && (
+        <VariationSelector
+          product={variationProduct}
+          onClose={() => setVariationProduct(null)}
+          onAddToCart={handleAddWithVariation}
         />
       )}
 
@@ -406,4 +482,3 @@ export default function StaffMenuPage() {
     </div>
   );
 }
-

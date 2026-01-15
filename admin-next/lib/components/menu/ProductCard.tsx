@@ -1,7 +1,7 @@
 'use client';
 
-import { Product } from '@/lib/firebase/database';
-import { Plus, Minus, Eye } from 'lucide-react';
+import { Product, ProductVariation } from '@/lib/firebase/database';
+import { Plus, Minus, Eye, Layers } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
@@ -9,9 +9,10 @@ interface ProductCardProps {
   // Staff menu props
   isStaffMode?: boolean;
   quantity?: number;
-  onAddToCart?: (product: Product) => void;
+  onAddToCart?: (product: Product, variation?: ProductVariation) => void;
   onIncrement?: (product: Product) => void;
   onDecrement?: (product: Product) => void;
+  onSelectVariation?: (product: Product) => void;
 }
 
 export default function ProductCard({
@@ -22,7 +23,33 @@ export default function ProductCard({
   onAddToCart,
   onIncrement,
   onDecrement,
+  onSelectVariation,
 }: ProductCardProps) {
+  // Check if product has active variations
+  const activeVariations = product.variations?.filter(v => v.isActive !== false) || [];
+  const hasVariations = activeVariations.length > 0;
+  
+  // Get price display
+  const getDisplayPrice = () => {
+    if (hasVariations) {
+      const prices = activeVariations.map(v => v.price);
+      const minPrice = Math.min(...prices);
+      return minPrice;
+    }
+    return product.price;
+  };
+
+  const displayPrice = getDisplayPrice();
+
+  const handleAddClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasVariations && onSelectVariation) {
+      onSelectVariation(product);
+    } else {
+      onAddToCart?.(product);
+    }
+  };
+
   return (
     <div
       style={{
@@ -32,6 +59,7 @@ export default function ProductCard({
         border: '1px solid #e2e8f0',
         transition: 'all 0.2s',
         cursor: 'pointer',
+        position: 'relative',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-4px)';
@@ -42,6 +70,29 @@ export default function ProductCard({
         e.currentTarget.style.boxShadow = 'none';
       }}
     >
+      {/* Variations Badge */}
+      {hasVariations && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '6px 10px',
+          backgroundColor: 'rgba(99, 102, 241, 0.9)',
+          borderRadius: '20px',
+          fontSize: '11px',
+          fontWeight: 600,
+          color: '#ffffff',
+          zIndex: 5,
+          backdropFilter: 'blur(4px)',
+        }}>
+          <Layers style={{ width: '12px', height: '12px' }} />
+          خيارات متعددة
+        </div>
+      )}
+
       {/* Image / Emoji */}
       <div
         onClick={() => onViewDetails(product)}
@@ -54,9 +105,9 @@ export default function ProductCard({
           borderBottom: '1px solid #f1f5f9',
         }}
       >
-        {product.image ? (
+        {product.image || product.imageUrl ? (
           <img
-            src={product.image}
+            src={product.image || product.imageUrl}
             alt={product.name}
             style={{
               width: '100%',
@@ -108,16 +159,28 @@ export default function ProductCard({
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <div style={{
-            fontSize: '18px',
-            fontWeight: 700,
-            color: '#16a34a',
-          }}>
-            {product.price.toFixed(3)} <span style={{ fontSize: '12px', fontWeight: 500 }}>ر.ع</span>
+          <div>
+            {hasVariations && (
+              <span style={{
+                fontSize: '11px',
+                color: '#64748b',
+                display: 'block',
+                marginBottom: '2px',
+              }}>
+                يبدأ من
+              </span>
+            )}
+            <div style={{
+              fontSize: '18px',
+              fontWeight: 700,
+              color: '#16a34a',
+            }}>
+              {displayPrice.toFixed(3)} <span style={{ fontSize: '12px', fontWeight: 500 }}>ر.ع</span>
+            </div>
           </div>
 
           {isStaffMode ? (
-            quantity > 0 ? (
+            quantity > 0 && !hasVariations ? (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -178,16 +241,13 @@ export default function ProductCard({
               </div>
             ) : (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddToCart?.(product);
-                }}
+                onClick={handleAddClick}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
                   padding: '8px 14px',
-                  backgroundColor: '#6366f1',
+                  backgroundColor: hasVariations ? '#8b5cf6' : '#6366f1',
                   border: 'none',
                   borderRadius: '10px',
                   fontSize: '13px',
@@ -196,8 +256,17 @@ export default function ProductCard({
                   cursor: 'pointer',
                 }}
               >
-                <Plus style={{ width: '16px', height: '16px' }} />
-                إضافة
+                {hasVariations ? (
+                  <>
+                    <Layers style={{ width: '16px', height: '16px' }} />
+                    اختر
+                  </>
+                ) : (
+                  <>
+                    <Plus style={{ width: '16px', height: '16px' }} />
+                    إضافة
+                  </>
+                )}
               </button>
             )
           ) : (
@@ -229,4 +298,3 @@ export default function ProductCard({
     </div>
   );
 }
-

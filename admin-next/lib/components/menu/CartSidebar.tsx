@@ -1,22 +1,24 @@
 'use client';
 
-import { Product } from '@/lib/firebase/database';
-import { X, Minus, Plus, Trash2, ShoppingCart, Send } from 'lucide-react';
+import { Product, ProductVariation } from '@/lib/firebase/database';
+import { X, Minus, Plus, Trash2, ShoppingCart, Send, Layers } from 'lucide-react';
 
 export interface CartItem {
   product: Product;
   quantity: number;
   note?: string;
+  variation?: ProductVariation;
+  cartItemId: string; // Unique ID for cart item (product + variation combo)
 }
 
 interface CartSidebarProps {
   items: CartItem[];
   isOpen: boolean;
   onClose: () => void;
-  onIncrement: (product: Product) => void;
-  onDecrement: (product: Product) => void;
-  onRemove: (productId: string) => void;
-  onNoteChange: (productId: string, note: string) => void;
+  onIncrement: (cartItemId: string) => void;
+  onDecrement: (cartItemId: string) => void;
+  onRemove: (cartItemId: string) => void;
+  onNoteChange: (cartItemId: string, note: string) => void;
   onSubmit: () => void;
   tableNumber: string;
   onTableChange: (table: string) => void;
@@ -36,7 +38,11 @@ export default function CartSidebar({
   onTableChange,
   isSubmitting,
 }: CartSidebarProps) {
-  const total = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  // Calculate total with variation prices
+  const total = items.reduce((sum, item) => {
+    const price = item.variation ? item.variation.price : item.product.price;
+    return sum + (price * item.quantity);
+  }, 0);
   const itemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -165,157 +171,191 @@ export default function CartSidebar({
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {items.map((item) => (
-                <div
-                  key={item.product.id}
-                  style={{
-                    backgroundColor: '#f8fafc',
-                    borderRadius: '16px',
-                    padding: '16px',
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '12px',
-                    marginBottom: '12px',
-                  }}>
-                    {/* Product Image/Emoji */}
+              {items.map((item) => {
+                const price = item.variation ? item.variation.price : item.product.price;
+                const displayName = item.variation 
+                  ? `${item.product.name} - ${item.variation.name}`
+                  : item.product.name;
+                
+                return (
+                  <div
+                    key={item.cartItemId}
+                    style={{
+                      backgroundColor: '#f8fafc',
+                      borderRadius: '16px',
+                      padding: '16px',
+                    }}
+                  >
                     <div style={{
-                      width: '50px',
-                      height: '50px',
-                      borderRadius: '12px',
-                      backgroundColor: '#ffffff',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '24px',
-                      flexShrink: 0,
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      marginBottom: '12px',
                     }}>
-                      {item.product.emoji || '☕'}
-                    </div>
-                    
-                    {/* Product Info */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h4 style={{
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        color: '#0f172a',
-                        marginBottom: '4px',
-                      }}>
-                        {item.product.name}
-                      </h4>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#16a34a' }}>
-                        {item.product.price.toFixed(3)} ر.ع
-                      </div>
-                    </div>
-
-                    {/* Remove Button */}
-                    <button
-                      onClick={() => onRemove(item.product.id)}
-                      style={{
-                        width: '32px',
-                        height: '32px',
+                      {/* Product Image/Emoji */}
+                      <div style={{
+                        width: '50px',
+                        height: '50px',
+                        borderRadius: '12px',
+                        backgroundColor: '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: '#fef2f2',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        color: '#dc2626',
-                      }}
-                    >
-                      <Trash2 style={{ width: '16px', height: '16px' }} />
-                    </button>
-                  </div>
+                        fontSize: '24px',
+                        flexShrink: 0,
+                        overflow: 'hidden',
+                      }}>
+                        {item.product.image || item.product.imageUrl ? (
+                          <img
+                            src={item.product.image || item.product.imageUrl}
+                            alt={item.product.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          item.product.emoji || '☕'
+                        )}
+                      </div>
+                      
+                      {/* Product Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h4 style={{
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          color: '#0f172a',
+                          marginBottom: '4px',
+                        }}>
+                          {item.product.name}
+                        </h4>
+                        {/* Variation Badge */}
+                        {item.variation && (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: '#6366f1',
+                            marginBottom: '4px',
+                          }}>
+                            <Layers style={{ width: '10px', height: '10px' }} />
+                            {item.variation.name}
+                          </div>
+                        )}
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#16a34a' }}>
+                          {price.toFixed(3)} ر.ع
+                        </div>
+                      </div>
 
-                  {/* Quantity Controls */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      backgroundColor: '#ffffff',
-                      borderRadius: '10px',
-                      padding: '4px',
-                    }}>
+                      {/* Remove Button */}
                       <button
-                        onClick={() => onDecrement(item.product)}
+                        onClick={() => onRemove(item.cartItemId)}
                         style={{
                           width: '32px',
                           height: '32px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          backgroundColor: '#f1f5f9',
+                          backgroundColor: '#fef2f2',
                           border: 'none',
                           borderRadius: '8px',
                           cursor: 'pointer',
                           color: '#dc2626',
                         }}
                       >
-                        <Minus style={{ width: '14px', height: '14px' }} />
+                        <Trash2 style={{ width: '16px', height: '16px' }} />
                       </button>
-                      <span style={{
-                        minWidth: '28px',
-                        textAlign: 'center',
+                    </div>
+
+                    {/* Quantity Controls */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '10px',
+                        padding: '4px',
+                      }}>
+                        <button
+                          onClick={() => onDecrement(item.cartItemId)}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#f1f5f9',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            color: '#dc2626',
+                          }}
+                        >
+                          <Minus style={{ width: '14px', height: '14px' }} />
+                        </button>
+                        <span style={{
+                          minWidth: '28px',
+                          textAlign: 'center',
+                          fontSize: '15px',
+                          fontWeight: 700,
+                          color: '#0f172a',
+                        }}>
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() => onIncrement(item.cartItemId)}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#6366f1',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <Plus style={{ width: '14px', height: '14px' }} />
+                        </button>
+                      </div>
+                      <div style={{
                         fontSize: '15px',
                         fontWeight: 700,
                         color: '#0f172a',
                       }}>
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => onIncrement(item.product)}
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: '#6366f1',
-                          border: 'none',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          color: '#ffffff',
-                        }}
-                      >
-                        <Plus style={{ width: '14px', height: '14px' }} />
-                      </button>
+                        {(price * item.quantity).toFixed(3)} ر.ع
+                      </div>
                     </div>
-                    <div style={{
-                      fontSize: '15px',
-                      fontWeight: 700,
-                      color: '#0f172a',
-                    }}>
-                      {(item.product.price * item.quantity).toFixed(3)} ر.ع
-                    </div>
-                  </div>
 
-                  {/* Note Input */}
-                  <input
-                    type="text"
-                    value={item.note || ''}
-                    onChange={(e) => onNoteChange(item.product.id, e.target.value)}
-                    placeholder="ملاحظة..."
-                    style={{
-                      width: '100%',
-                      marginTop: '12px',
-                      padding: '10px 14px',
-                      fontSize: '13px',
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '10px',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-              ))}
+                    {/* Note Input */}
+                    <input
+                      type="text"
+                      value={item.note || ''}
+                      onChange={(e) => onNoteChange(item.cartItemId, e.target.value)}
+                      placeholder="ملاحظة..."
+                      style={{
+                        width: '100%',
+                        marginTop: '12px',
+                        padding: '10px 14px',
+                        fontSize: '13px',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '10px',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -405,4 +445,3 @@ export default function CartSidebar({
     </>
   );
 }
-
