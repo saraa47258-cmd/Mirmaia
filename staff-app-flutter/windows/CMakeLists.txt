@@ -41,16 +41,14 @@ add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 # default. In most cases, you should add new options to specific targets instead
 # of modifying this function.
 function(APPLY_STANDARD_SETTINGS TARGET)
-  # Use C++20 for Firebase C++ SDK compatibility
-  target_compile_features(${TARGET} PUBLIC cxx_std_20)
+  # Use C++17 (VS2019 compatible) - Firebase will work with C++17
+  target_compile_features(${TARGET} PUBLIC cxx_std_17)
   # Removed /WX to not treat warnings as errors (fixes Firebase SDK issues)
   target_compile_options(${TARGET} PRIVATE /W4 /wd"4100" /wd"4996")
   target_compile_options(${TARGET} PRIVATE /EHsc)
   target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
   target_compile_definitions(${TARGET} PRIVATE "_CRT_SECURE_NO_WARNINGS")
-  # Enable C++20 features for Firebase
-  target_compile_definitions(${TARGET} PRIVATE "_HAS_CXX20=1")
 endfunction()
 
 # Flutter library and tool build rules.
