@@ -106,6 +106,21 @@ export interface Restaurant {
   status: string;
 }
 
+export interface Table {
+  id: string;
+  tableNumber: string;
+  name?: string;
+  area: 'indoor' | 'outdoor' | 'room' | 'vip' | 'terrace';
+  capacity: number;
+  status: 'available' | 'reserved' | 'occupied';
+  activeOrderId?: string | null;
+  activeOrder?: Order | null;
+  reservedBy?: string;
+  reservedAt?: string;
+  updatedAt?: string;
+  createdAt?: string;
+}
+
 // Database paths
 const getPath = (collection: string) => `restaurant-system/${collection}/${RESTAURANT_ID}`;
 
@@ -441,5 +456,104 @@ export const getSalesStats = async (startDate?: Date, endDate?: Date) => {
     itemsSold,
     averageOrder: ordersCount > 0 ? totalRevenue / paidOrders : 0,
   };
+};
+
+// Tables
+export const getTables = async (): Promise<Table[]> => {
+  const snapshot = await get(ref(database, getPath('tables')));
+  const data = snapshot.val() || {};
+  return Object.entries(data).map(([id, table]: [string, any]) => ({
+    id,
+    ...table,
+  }));
+};
+
+export const getTable = async (tableId: string): Promise<Table | null> => {
+  const snapshot = await get(ref(database, `${getPath('tables')}/${tableId}`));
+  if (!snapshot.exists()) return null;
+  return { id: tableId, ...snapshot.val() };
+};
+
+export const listenToTables = (callback: (tables: Table[]) => void): () => void => {
+  const tablesRef = ref(database, getPath('tables'));
+  const listener = onValue(tablesRef, (snapshot) => {
+    const data = snapshot.val() || {};
+    const tables = Object.entries(data).map(([id, table]: [string, any]) => ({
+      id,
+      ...table,
+    }));
+    callback(tables);
+  });
+  return () => off(tablesRef, 'value', listener);
+};
+
+export const createTable = async (table: Omit<Table, 'id'>): Promise<string> => {
+  const newRef = push(ref(database, getPath('tables')));
+  await set(newRef, {
+    ...table,
+    status: table.status || 'available',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  return newRef.key!;
+};
+
+export const updateTable = async (tableId: string, updates: Partial<Table>): Promise<void> => {
+  await update(ref(database, `${getPath('tables')}/${tableId}`), {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+};
+
+export const deleteTable = async (tableId: string): Promise<void> => {
+  await remove(ref(database, `${getPath('tables')}/${tableId}`));
+};
+
+export const setTableStatus = async (
+  tableId: string, 
+  status: 'available' | 'reserved' | 'occupied',
+  activeOrderId?: string | null,
+  reservedBy?: string
+): Promise<void> => {
+  const updates: Partial<Table> = {
+    status,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  if (status === 'available') {
+    updates.activeOrderId = null;
+    updates.reservedBy = undefined;
+    updates.reservedAt = undefined;
+  } else if (status === 'reserved') {
+    updates.reservedBy = reservedBy;
+    updates.reservedAt = new Date().toISOString();
+  } else if (status === 'occupied' && activeOrderId) {
+    updates.activeOrderId = activeOrderId;
+  }
+  
+  await update(ref(database, `${getPath('tables')}/${tableId}`), updates);
+};
+
+export const getTableWithOrder = async (tableId: string): Promise<Table | null> => {
+  const table = await getTable(tableId);
+  if (!table) return null;
+  
+  if (table.activeOrderId) {
+    const order = await getOrder(table.activeOrderId);
+    return { ...table, activeOrder: order };
+  }
+  
+  return table;
+};
+
+export const getOrdersByTable = async (tableId: string): Promise<Order[]> => {
+  const orders = await getOrders();
+  return orders
+    .filter(order => order.tableId === tableId)
+    .sort((a, b) => {
+      const timeA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
+    });
 };
 
