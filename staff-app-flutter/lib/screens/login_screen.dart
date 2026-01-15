@@ -95,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
-                        fontFamily: 'IBMPlexSansArabic',
+                        fontFamily: null,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[500],
-                        fontFamily: 'IBMPlexSansArabic',
+                        fontFamily: null,
                       ),
                     ),
                     const SizedBox(height: 40),

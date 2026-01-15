@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
+  // Get Arabic font
+  static String? get _fontFamily => GoogleFonts.cairo().fontFamily;
   // Colors
   static const Color primaryColor = Color(0xFF6366F1);
   static const Color primaryDark = Color(0xFF4F46E5);
@@ -31,7 +34,7 @@ class AppTheme {
       brightness: Brightness.light,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: lightBackground,
-      fontFamily: 'IBMPlexSansArabic',
+      fontFamily: _fontFamily,
       
       colorScheme: const ColorScheme.light(
         primary: primaryColor,
@@ -53,7 +56,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: lightText,
@@ -105,7 +108,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(12),
           ),
           textStyle: const TextStyle(
-            fontFamily: 'IBMPlexSansArabic',
+            fontFamily: _fontFamily,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -137,7 +140,7 @@ class AppTheme {
         backgroundColor: lightBackground,
         selectedColor: primaryColor.withOpacity(0.1),
         labelStyle: const TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 14,
         ),
         shape: RoundedRectangleBorder(
@@ -155,67 +158,67 @@ class AppTheme {
       // Text Theme
       textTheme: const TextTheme(
         displayLarge: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 32,
           fontWeight: FontWeight.w700,
           color: lightText,
         ),
         displayMedium: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 28,
           fontWeight: FontWeight.w700,
           color: lightText,
         ),
         displaySmall: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 24,
           fontWeight: FontWeight.w600,
           color: lightText,
         ),
         headlineMedium: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: lightText,
         ),
         headlineSmall: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: lightText,
         ),
         titleLarge: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: lightText,
         ),
         titleMedium: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: lightText,
         ),
         bodyLarge: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: lightText,
         ),
         bodyMedium: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: lightText,
         ),
         bodySmall: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: lightTextSecondary,
         ),
         labelLarge: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: lightText,
@@ -231,7 +234,7 @@ class AppTheme {
       brightness: Brightness.dark,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: darkBackground,
-      fontFamily: 'IBMPlexSansArabic',
+      fontFamily: _fontFamily,
       
       colorScheme: const ColorScheme.dark(
         primary: primaryColor,
@@ -283,19 +286,19 @@ class AppTheme {
       
       textTheme: const TextTheme(
         displayLarge: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 32,
           fontWeight: FontWeight.w700,
           color: darkText,
         ),
         bodyLarge: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: darkText,
         ),
         bodySmall: TextStyle(
-          fontFamily: 'IBMPlexSansArabic',
+          fontFamily: _fontFamily,
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: darkTextSecondary,

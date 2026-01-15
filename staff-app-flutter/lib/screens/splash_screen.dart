@@ -126,7 +126,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           fontSize: 36,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
-                          fontFamily: 'IBMPlexSansArabic',
+                          fontFamily: null,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -137,7 +137,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.white.withOpacity(0.7),
-                          fontFamily: 'IBMPlexSansArabic',
+                          fontFamily: null,
                         ),
                       ),
                       const SizedBox(height: 48),
