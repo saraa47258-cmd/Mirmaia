@@ -30,6 +30,7 @@ export interface OrderItem {
   quantity: number;
   itemTotal?: number;
   emoji?: string;
+  note?: string;
 }
 
 export interface Product {
@@ -38,6 +39,7 @@ export interface Product {
   price: number;
   category: string;
   description?: string;
+  image?: string;
   imageUrl?: string;
   active: boolean;
   createdAt?: string;
@@ -116,6 +118,30 @@ export const updateOrderStatus = async (orderId: string, status: string): Promis
     status,
     updatedAt: new Date().toISOString(),
   });
+};
+
+export const createOrder = async (order: Omit<Order, 'id'>): Promise<string> => {
+  const newRef = push(ref(database, getPath('orders')));
+  const orderData = {
+    ...order,
+    restaurantId: RESTAURANT_ID,
+    createdAt: new Date().toISOString(),
+    timestamp: Date.now(),
+  };
+  await set(newRef, orderData);
+  return newRef.key!;
+};
+
+export const listenToOrder = (orderId: string, callback: (order: Order | null) => void): () => void => {
+  const orderRef = ref(database, `${getPath('orders')}/${orderId}`);
+  const listener = onValue(orderRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback({ id: orderId, ...snapshot.val() });
+    } else {
+      callback(null);
+    }
+  });
+  return () => off(orderRef, 'value', listener);
 };
 
 // Products
