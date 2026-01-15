@@ -1,28 +1,80 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getOrders, updateOrderStatus, Order } from '@/lib/firebase/database';
-import Topbar from '@/lib/components/Topbar';
-import { Search, Filter, ChevronLeft, ChevronRight, MoreHorizontal, Download } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Order, 
+  getOrdersByDateRange, 
+  getDateRangeForFilter,
+  updateOrderStatus,
+  updateOrderPaymentStatus,
+  DateRange 
+} from '@/lib/firebase/database';
+import OrderFilters, { OrderFiltersState } from '@/lib/components/orders/OrderFilters';
+import OrderKPIs from '@/lib/components/orders/OrderKPIs';
+import OrderDetailsDrawer from '@/lib/components/orders/OrderDetailsDrawer';
+import { 
+  Eye, 
+  ChevronLeft, 
+  ChevronRight,
+  Clock,
+  ChefHat,
+  Package,
+  CheckCircle,
+  Ban,
+  Printer,
+  MoreVertical,
+  RefreshCw
+} from 'lucide-react';
+
+const STATUS_CONFIG = {
+  pending: { label: 'معلق', color: '#f59e0b', bg: '#fef3c7' },
+  processing: { label: 'قيد التنفيذ', color: '#3b82f6', bg: '#dbeafe' },
+  preparing: { label: 'قيد التحضير', color: '#f59e0b', bg: '#fef3c7' },
+  ready: { label: 'جاهز', color: '#06b6d4', bg: '#cffafe' },
+  paid: { label: 'مدفوع', color: '#10b981', bg: '#dcfce7' },
+  completed: { label: 'مكتمل', color: '#10b981', bg: '#dcfce7' },
+  cancelled: { label: 'ملغي', color: '#ef4444', bg: '#fee2e2' },
+};
+
+const PAYMENT_STATUS = {
+  pending: { label: 'غير مدفوع', color: '#f59e0b', bg: '#fef3c7' },
+  paid: { label: 'مدفوع', color: '#10b981', bg: '#dcfce7' },
+};
+
+const DATE_RANGE_LABELS = {
+  today: 'اليوم',
+  week: 'هذا الأسبوع',
+  month: 'هذا الشهر',
+  year: 'هذه السنة',
+  custom: 'تاريخ محدد',
+};
+
+const PAGE_SIZE = 15;
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const [filters, setFilters] = useState<OrderFiltersState>({
+    dateRange: 'today',
     status: 'all',
+    paymentStatus: 'all',
     search: '',
   });
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
-
-  useEffect(() => {
-    loadOrders();
-  }, []);
 
   const loadOrders = async () => {
+    setLoading(true);
     try {
-      const allOrders = await getOrders();
-      setOrders(allOrders);
+      const dateRange = getDateRangeForFilter(
+        filters.dateRange,
+        filters.customStart,
+        filters.customEnd
+      );
+      const data = await getOrdersByDateRange(dateRange);
+      setOrders(data);
     } catch (error) {
       console.error('Error loading orders:', error);
     } finally {
@@ -30,299 +82,462 @@ export default function OrdersPage() {
     }
   };
 
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    loadOrders();
+    setCurrentPage(1);
+  }, [filters.dateRange, filters.customStart, filters.customEnd]);
+
+  // Filtered orders (status, payment, search)
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      // Status filter
+      if (filters.status !== 'all' && order.status !== filters.status) {
+        return false;
+      }
+      
+      // Payment filter
+      if (filters.paymentStatus !== 'all') {
+        const isPaid = order.paymentStatus === 'paid' || order.status === 'paid';
+        if (filters.paymentStatus === 'paid' && !isPaid) return false;
+        if (filters.paymentStatus === 'pending' && isPaid) return false;
+      }
+      
+      // Search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const orderIdMatch = order.id.toLowerCase().includes(searchLower);
+        const customerMatch = order.customerName?.toLowerCase().includes(searchLower);
+        if (!orderIdMatch && !customerMatch) return false;
+      }
+      
+      return true;
+    });
+  }, [orders, filters.status, filters.paymentStatus, filters.search]);
+
+  // Paginated orders
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filteredOrders.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredOrders, currentPage]);
+
+  const totalPages = Math.ceil(filteredOrders.length / PAGE_SIZE);
+
+  const handleStatusUpdate = async (orderId: string, status: string) => {
     try {
-      await updateOrderStatus(orderId, newStatus);
+      if (status === 'paid') {
+        await updateOrderPaymentStatus(orderId, 'paid');
+        await updateOrderStatus(orderId, 'completed');
+      } else {
+        await updateOrderStatus(orderId, status);
+      }
       await loadOrders();
+      
+      // Update selected order if open
+      if (selectedOrder?.id === orderId) {
+        const updatedOrder = orders.find(o => o.id === orderId);
+        if (updatedOrder) {
+          setSelectedOrder({ ...updatedOrder, status: status as any });
+        }
+      }
     } catch (error) {
-      console.error('Error updating order status:', error);
+      console.error('Error updating status:', error);
     }
   };
 
-  const filteredOrders = orders.filter((order) => {
-    if (filters.status !== 'all' && order.status !== filters.status) return false;
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      return (
-        order.id.toLowerCase().includes(searchLower) ||
-        order.customerName?.toLowerCase().includes(searchLower) ||
-        order.tableNumber?.toLowerCase().includes(searchLower)
-      );
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('ar-EG', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('ar-EG', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getSourceLabel = (source?: string) => {
+    switch (source) {
+      case 'staff-menu': return 'الموظفين';
+      case 'cashier': return 'الكاشير';
+      case 'mobile': return 'الجوال';
+      default: return source || '-';
     }
-    return true;
-  });
-
-  const sortedOrders = filteredOrders.sort((a, b) => {
-    const timeA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-    const timeB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-    return timeB - timeA;
-  });
-
-  const totalPages = Math.ceil(sortedOrders.length / itemsPerPage);
-  const paginatedOrders = sortedOrders.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const getStatusConfig = (status: string) => {
-    const configs: Record<string, { label: string; className: string }> = {
-      pending: { label: 'معلق', className: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-      processing: { label: 'قيد التنفيذ', className: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-      preparing: { label: 'قيد التحضير', className: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-      ready: { label: 'جاهز', className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
-      paid: { label: 'مدفوع', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-      completed: { label: 'مكتمل', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-      cancelled: { label: 'ملغي', className: 'bg-red-500/10 text-red-400 border-red-500/20' },
-    };
-    return configs[status] || { label: status, className: 'bg-gray-500/10 text-gray-400 border-gray-500/20' };
   };
-
-  const statusOptions = [
-    { value: 'all', label: 'جميع الحالات' },
-    { value: 'pending', label: 'معلق' },
-    { value: 'processing', label: 'قيد التنفيذ' },
-    { value: 'preparing', label: 'قيد التحضير' },
-    { value: 'ready', label: 'جاهز' },
-    { value: 'paid', label: 'مدفوع' },
-    { value: 'completed', label: 'مكتمل' },
-    { value: 'cancelled', label: 'ملغي' },
-  ];
-
-  // Stats
-  const stats = {
-    total: filteredOrders.length,
-    pending: filteredOrders.filter((o) => o.status === 'pending').length,
-    completed: filteredOrders.filter((o) => o.status === 'completed' || o.status === 'paid').length,
-    revenue: filteredOrders
-      .filter((o) => o.status === 'paid' || o.status === 'completed')
-      .reduce((sum, o) => sum + (o.total || 0), 0),
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 text-[13px] text-gray-500">جاري التحميل...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen">
-      <Topbar title="الطلبات" subtitle="إدارة ومتابعة جميع الطلبات" />
-
-      <div className="p-6 space-y-5">
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-gray-900/50 border border-gray-800/60 rounded-lg px-4 py-3">
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-1">إجمالي الطلبات</p>
-            <p className="text-xl font-semibold text-white">{stats.total}</p>
-          </div>
-          <div className="bg-gray-900/50 border border-gray-800/60 rounded-lg px-4 py-3">
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-1">المعلقة</p>
-            <p className="text-xl font-semibold text-amber-400">{stats.pending}</p>
-          </div>
-          <div className="bg-gray-900/50 border border-gray-800/60 rounded-lg px-4 py-3">
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-1">المكتملة</p>
-            <p className="text-xl font-semibold text-emerald-400">{stats.completed}</p>
-          </div>
-          <div className="bg-gray-900/50 border border-gray-800/60 rounded-lg px-4 py-3">
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-1">إجمالي المبيعات</p>
-            <p className="text-xl font-semibold text-white">{stats.revenue.toFixed(3)} <span className="text-[12px] text-gray-500">ر.ع</span></p>
-          </div>
+    <div style={{ padding: '24px' }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px',
+      }}>
+        <div>
+          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            الطلبات
+          </h1>
+          <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
+            إدارة ومتابعة جميع الطلبات
+          </p>
         </div>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(e) => {
-                setFilters({ ...filters, search: e.target.value });
-                setCurrentPage(1);
-              }}
-              placeholder="ابحث عن طلب..."
-              className="w-full pr-10 pl-4 py-2 bg-gray-900/50 border border-gray-800/60 rounded-lg text-[13px] text-white placeholder-gray-500 focus:outline-none focus:border-gray-700 transition-colors"
-            />
-          </div>
-          <div className="relative">
-            <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <select
-              value={filters.status}
-              onChange={(e) => {
-                setFilters({ ...filters, status: e.target.value });
-                setCurrentPage(1);
-              }}
-              className="pr-10 pl-8 py-2 bg-gray-900/50 border border-gray-800/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-700 appearance-none cursor-pointer"
-            >
-              {statusOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-          <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900/50 border border-gray-800/60 rounded-lg text-[13px] text-gray-400 hover:text-white hover:border-gray-700 transition-colors">
-            <Download className="w-4 h-4" />
-            <span>تصدير</span>
-          </button>
-        </div>
-
-        {/* Table */}
-        <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-800/60 bg-gray-900/50">
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    رقم الطلب
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    العميل
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    المنتجات
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    المبلغ
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    الحالة
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    التاريخ
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    الإجراءات
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/40">
-                {paginatedOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center text-[13px] text-gray-500">
-                      لا توجد طلبات
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedOrders.map((order) => {
-                    const statusConfig = getStatusConfig(order.status);
-                    return (
-                      <tr key={order.id} className="hover:bg-gray-800/30 transition-colors">
-                        <td className="px-5 py-3.5 text-[13px] font-medium text-white">
-                          #{order.id.slice(-6).toUpperCase()}
-                        </td>
-                        <td className="px-5 py-3.5 text-[13px] text-gray-300">
-                          {order.customerName || order.tableNumber || 'غير محدد'}
-                        </td>
-                        <td className="px-5 py-3.5 text-[13px] text-gray-400">
-                          <div className="max-w-[200px]">
-                            {order.items.slice(0, 2).map((item, idx) => (
-                              <div key={idx} className="truncate">
-                                {item.quantity}× {item.name}
-                              </div>
-                            ))}
-                            {order.items.length > 2 && (
-                              <span className="text-[11px] text-gray-500">
-                                +{order.items.length - 2} منتج آخر
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5 text-[13px] font-medium text-white">
-                          {order.total.toFixed(3)} ر.ع
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium border ${statusConfig.className}`}>
-                            {statusConfig.label}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 text-[13px] text-gray-500">
-                          {order.createdAt
-                            ? new Date(order.createdAt).toLocaleString('ar-EG', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })
-                            : '-'}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <select
-                            value={order.status}
-                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                            className="px-2.5 py-1 bg-gray-800/80 border border-gray-700/60 rounded text-[12px] text-white focus:outline-none focus:border-gray-600 transition-colors"
-                          >
-                            <option value="pending">معلق</option>
-                            <option value="processing">قيد التنفيذ</option>
-                            <option value="preparing">قيد التحضير</option>
-                            <option value="ready">جاهز</option>
-                            <option value="paid">مدفوع</option>
-                            <option value="completed">مكتمل</option>
-                            <option value="cancelled">ملغي</option>
-                          </select>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-5 py-3 border-t border-gray-800/60 flex items-center justify-between bg-gray-900/30">
-              <div className="text-[12px] text-gray-500">
-                عرض {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, sortedOrders.length)} من {sortedOrders.length}
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="p-1.5 bg-gray-800/60 border border-gray-700/60 rounded text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700/60 hover:text-white transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`w-8 h-8 rounded text-[12px] font-medium transition-colors ${
-                        currentPage === pageNum
-                          ? 'bg-accent text-white'
-                          : 'bg-gray-800/60 text-gray-400 hover:bg-gray-700/60 hover:text-white border border-gray-700/60'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="p-1.5 bg-gray-800/60 border border-gray-700/60 rounded text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700/60 hover:text-white transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            backgroundColor: '#f1f5f9',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            fontSize: '14px',
+            fontWeight: 600,
+            color: '#475569',
+            cursor: refreshing ? 'not-allowed' : 'pointer',
+          }}
+        >
+          <RefreshCw 
+            style={{ 
+              width: '18px', 
+              height: '18px',
+              animation: refreshing ? 'spin 1s linear infinite' : 'none',
+            }} 
+          />
+          تحديث
+        </button>
       </div>
+
+      {/* KPIs */}
+      <OrderKPIs 
+        orders={orders} 
+        dateRangeLabel={DATE_RANGE_LABELS[filters.dateRange]} 
+      />
+
+      {/* Filters */}
+      <OrderFilters filters={filters} onChange={setFilters} />
+
+      {/* Table */}
+      <div style={{
+        backgroundColor: '#ffffff',
+        borderRadius: '16px',
+        border: '1px solid #e2e8f0',
+        overflow: 'hidden',
+      }}>
+        {loading ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '60px',
+            color: '#64748b',
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              border: '3px solid #e2e8f0',
+              borderTopColor: '#6366f1',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+            }} />
+          </div>
+        ) : paginatedOrders.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: '#64748b',
+          }}>
+            <p style={{ fontSize: '16px', marginBottom: '8px' }}>لا توجد طلبات</p>
+            <p style={{ fontSize: '14px', color: '#94a3b8' }}>
+              {filters.search || filters.status !== 'all' || filters.paymentStatus !== 'all' 
+                ? 'جرب تغيير الفلاتر' 
+                : 'لم يتم تسجيل أي طلبات في هذه الفترة'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Table Header */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '100px 140px 1fr 80px 100px 100px 100px 80px 80px',
+              gap: '12px',
+              padding: '14px 20px',
+              backgroundColor: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#64748b',
+            }}>
+              <div>رقم الطلب</div>
+              <div>التاريخ/الوقت</div>
+              <div>العميل/الطاولة</div>
+              <div style={{ textAlign: 'center' }}>العناصر</div>
+              <div style={{ textAlign: 'center' }}>الإجمالي</div>
+              <div style={{ textAlign: 'center' }}>الدفع</div>
+              <div style={{ textAlign: 'center' }}>الحالة</div>
+              <div style={{ textAlign: 'center' }}>المصدر</div>
+              <div style={{ textAlign: 'center' }}>إجراءات</div>
+            </div>
+
+            {/* Table Body */}
+            {paginatedOrders.map((order) => {
+              const statusConfig = STATUS_CONFIG[order.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+              const isPaid = order.paymentStatus === 'paid' || order.status === 'paid';
+              const paymentConfig = isPaid ? PAYMENT_STATUS.paid : PAYMENT_STATUS.pending;
+
+              return (
+                <div
+                  key={order.id}
+                  onClick={() => setSelectedOrder(order)}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '100px 140px 1fr 80px 100px 100px 100px 80px 80px',
+                    gap: '12px',
+                    padding: '16px 20px',
+                    borderBottom: '1px solid #f1f5f9',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s',
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  {/* Order ID */}
+                  <div>
+                    <span style={{
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      color: '#6366f1',
+                      fontFamily: 'monospace',
+                    }}>
+                      #{order.id.slice(-6).toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Date/Time */}
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: 500, color: '#0f172a', margin: 0 }}>
+                      {formatDate(order.createdAt)}
+                    </p>
+                    <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                      {formatTime(order.createdAt)}
+                    </p>
+                  </div>
+
+                  {/* Customer/Table */}
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: 500, color: '#0f172a', margin: 0 }}>
+                      {order.customerName || 'عميل'}
+                    </p>
+                    {order.tableNumber && (
+                      <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                        🪑 {order.tableNumber}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Items Count */}
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#475569',
+                    }}>
+                      {order.itemsCount || order.items?.length || 0}
+                    </span>
+                  </div>
+
+                  {/* Total */}
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      color: '#0f172a',
+                    }}>
+                      {order.total.toFixed(3)}
+                    </span>
+                    <span style={{ fontSize: '11px', color: '#94a3b8', marginRight: '4px' }}>
+                      ر.ع
+                    </span>
+                  </div>
+
+                  {/* Payment Status */}
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      backgroundColor: paymentConfig.bg,
+                      color: paymentConfig.color,
+                    }}>
+                      {paymentConfig.label}
+                    </span>
+                  </div>
+
+                  {/* Order Status */}
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      backgroundColor: statusConfig.bg,
+                      color: statusConfig.color,
+                    }}>
+                      {statusConfig.label}
+                    </span>
+                  </div>
+
+                  {/* Source */}
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                      {getSourceLabel(order.source)}
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div 
+                    style={{ textAlign: 'center' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => setSelectedOrder(order)}
+                      style={{
+                        padding: '8px',
+                        backgroundColor: '#f1f5f9',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        color: '#475569',
+                      }}
+                    >
+                      <Eye style={{ width: '16px', height: '16px' }} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                borderTop: '1px solid #e2e8f0',
+                backgroundColor: '#f8fafc',
+              }}>
+                <span style={{ fontSize: '13px', color: '#64748b' }}>
+                  عرض {((currentPage - 1) * PAGE_SIZE) + 1} - {Math.min(currentPage * PAGE_SIZE, filteredOrders.length)} من {filteredOrders.length}
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '36px',
+                      height: '36px',
+                      backgroundColor: currentPage === 1 ? '#f1f5f9' : '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                      color: currentPage === 1 ? '#cbd5e1' : '#475569',
+                    }}
+                  >
+                    <ChevronRight style={{ width: '18px', height: '18px' }} />
+                  </button>
+                  
+                  {/* Page numbers */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          backgroundColor: currentPage === pageNum ? '#6366f1' : '#ffffff',
+                          border: '1px solid ' + (currentPage === pageNum ? '#6366f1' : '#e2e8f0'),
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          color: currentPage === pageNum ? '#ffffff' : '#475569',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '36px',
+                      height: '36px',
+                      backgroundColor: currentPage === totalPages ? '#f1f5f9' : '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                      color: currentPage === totalPages ? '#cbd5e1' : '#475569',
+                    }}
+                  >
+                    <ChevronLeft style={{ width: '18px', height: '18px' }} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Order Details Drawer */}
+      {selectedOrder && (
+        <OrderDetailsDrawer
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          onUpdateStatus={handleStatusUpdate}
+        />
+      )}
+
+      <style jsx global>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

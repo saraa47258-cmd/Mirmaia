@@ -341,6 +341,77 @@ export const getTodayOrders = async (): Promise<Order[]> => {
   });
 };
 
+export interface DateRange {
+  start: Date;
+  end: Date;
+}
+
+export const getDateRangeForFilter = (filter: 'today' | 'week' | 'month' | 'year' | 'custom', customStart?: string, customEnd?: string): DateRange => {
+  const now = new Date();
+  let start: Date;
+  let end: Date;
+
+  switch (filter) {
+    case 'today':
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      break;
+    case 'week':
+      const dayOfWeek = now.getDay();
+      const daysFromSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1; // Saturday is start of week
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysFromSaturday, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      break;
+    case 'month':
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      break;
+    case 'year':
+      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      break;
+    case 'custom':
+      start = customStart ? new Date(customStart) : new Date(now.getFullYear(), now.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      end = customEnd ? new Date(customEnd) : now;
+      end.setHours(23, 59, 59, 999);
+      break;
+    default:
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  }
+
+  return { start, end };
+};
+
+export const getOrdersByDateRange = async (dateRange: DateRange): Promise<Order[]> => {
+  const orders = await getOrders();
+  
+  return orders
+    .filter((order) => {
+      const orderTime = order.timestamp || (order.createdAt ? new Date(order.createdAt).getTime() : 0);
+      return orderTime >= dateRange.start.getTime() && orderTime <= dateRange.end.getTime();
+    })
+    .sort((a, b) => {
+      const timeA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA; // Newest first
+    });
+};
+
+export const updateOrderPaymentStatus = async (orderId: string, paymentStatus: 'pending' | 'paid'): Promise<void> => {
+  const updates: any = {
+    paymentStatus,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  if (paymentStatus === 'paid') {
+    updates.paidAt = new Date().toISOString();
+  }
+  
+  await update(ref(database, `${getPath('orders')}/${orderId}`), updates);
+};
+
 export const getSalesStats = async (startDate?: Date, endDate?: Date) => {
   const orders = await getOrders();
   
