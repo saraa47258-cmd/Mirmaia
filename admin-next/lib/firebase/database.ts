@@ -222,8 +222,17 @@ export const getProduct = async (productId: string): Promise<Product | null> => 
 
 export const createProduct = async (product: Omit<Product, 'id'>): Promise<string> => {
   const newRef = push(ref(database, getPath('menu')));
+  
+  // Remove undefined values (Firebase doesn't accept undefined)
+  const cleanProduct: Record<string, any> = {};
+  Object.entries(product).forEach(([key, value]) => {
+    if (value !== undefined) {
+      cleanProduct[key] = value;
+    }
+  });
+  
   await set(newRef, {
-    ...product,
+    ...cleanProduct,
     category: product.categoryId || product.category,
     categoryId: product.categoryId || product.category,
     active: product.isActive ?? product.active ?? true,
@@ -280,16 +289,33 @@ export const getCategories = async (): Promise<Category[]> => {
 
 export const createCategory = async (category: Omit<Category, 'id'>): Promise<string> => {
   const newRef = push(ref(database, getPath('categories')));
+  
+  // Remove undefined values (Firebase doesn't accept undefined)
+  const cleanCategory: Record<string, any> = {};
+  Object.entries(category).forEach(([key, value]) => {
+    if (value !== undefined) {
+      cleanCategory[key] = value;
+    }
+  });
+  
   await set(newRef, {
-    ...category,
+    ...cleanCategory,
     createdAt: new Date().toISOString(),
   });
   return newRef.key!;
 };
 
 export const updateCategory = async (categoryId: string, updates: Partial<Category>): Promise<void> => {
+  // Remove undefined values (Firebase doesn't accept undefined)
+  const cleanUpdates: Record<string, any> = {};
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value !== undefined) {
+      cleanUpdates[key] = value;
+    }
+  });
+  
   await update(ref(database, `${getPath('categories')}/${categoryId}`), {
-    ...updates,
+    ...cleanUpdates,
     updatedAt: new Date().toISOString(),
   });
 };
