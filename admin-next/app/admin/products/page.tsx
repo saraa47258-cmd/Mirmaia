@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getProducts, getCategories, createProduct, updateProduct, deleteProduct, Product, Category } from '@/lib/firebase/database';
 import Topbar from '@/lib/components/Topbar';
-import { Plus, Search, Edit2, Trash2, X, MoreHorizontal } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X } from 'lucide-react';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -78,37 +78,75 @@ export default function ProductsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 text-[13px] text-gray-500">جاري التحميل...</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid #e2e8f0',
+            borderTopColor: '#6366f1',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto',
+          }}></div>
+          <p style={{ marginTop: '16px', fontSize: '14px', color: '#64748b' }}>جاري التحميل...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen">
+    <div style={{ minHeight: '100vh' }}>
       <Topbar title="المنتجات" subtitle="إدارة قائمة المنتجات" />
 
-      <div className="p-6 space-y-5">
+      <div style={{ padding: '24px' }}>
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            {/* Search */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '0 14px',
+              height: '44px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              minWidth: '240px',
+            }}>
+              <Search style={{ width: '18px', height: '18px', color: '#94a3b8' }} />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="ابحث عن منتج..."
-                className="w-full sm:w-64 pr-10 pl-4 py-2 bg-gray-900/50 border border-gray-800/60 rounded-lg text-[13px] text-white placeholder-gray-500 focus:outline-none focus:border-gray-700"
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '14px',
+                  color: '#0f172a',
+                  backgroundColor: 'transparent',
+                }}
               />
             </div>
+
+            {/* Category Filter */}
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-4 py-2 bg-gray-900/50 border border-gray-800/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-700 appearance-none"
+              style={{
+                padding: '0 16px',
+                height: '44px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                fontSize: '14px',
+                color: '#0f172a',
+                cursor: 'pointer',
+                minWidth: '160px',
+              }}
             >
               <option value="all">جميع التصنيفات</option>
               {categories.map((cat) => (
@@ -118,122 +156,195 @@ export default function ProductsPage() {
               ))}
             </select>
           </div>
+
+          {/* Add Button */}
           <button
             onClick={() => {
               setEditingProduct(null);
               setShowModal(true);
             }}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-[13px] font-medium transition-colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '0 20px',
+              height: '44px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#ffffff',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
+            }}
           >
-            <Plus className="w-4 h-4" />
+            <Plus style={{ width: '18px', height: '18px' }} />
             إضافة منتج
           </button>
         </div>
 
         {/* Products Table */}
-        <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-800/60 bg-gray-900/50">
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    المنتج
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    التصنيف
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    السعر
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    الحالة
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    الإجراءات
-                  </th>
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid #e2e8f0',
+          overflow: 'hidden',
+        }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f8fafc' }}>
+                <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>المنتج</th>
+                <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>التصنيف</th>
+                <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>السعر</th>
+                <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>الحالة</th>
+                <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: '60px 20px', textAlign: 'center', fontSize: '14px', color: '#64748b' }}>
+                    لا توجد منتجات
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/40">
-                {filteredProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-5 py-12 text-center text-[13px] text-gray-500">
-                      لا توجد منتجات
+              ) : (
+                filteredProducts.map((product, index) => (
+                  <tr 
+                    key={product.id} 
+                    style={{ 
+                      borderTop: index > 0 ? '1px solid #f1f5f9' : 'none',
+                    }}
+                  >
+                    <td style={{ padding: '16px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '12px',
+                          backgroundColor: '#f8fafc',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '20px',
+                        }}>
+                          {product.emoji || '☕'}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{product.name}</div>
+                          {product.description && (
+                            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {product.description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '16px 20px', fontSize: '14px', color: '#475569' }}>
+                      {categories.find((c) => c.id === product.category)?.name || product.category}
+                    </td>
+                    <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                      {product.price.toFixed(3)} ر.ع
+                    </td>
+                    <td style={{ padding: '16px 20px' }}>
+                      <span style={{
+                        display: 'inline-flex',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        backgroundColor: product.active ? '#dcfce7' : '#f1f5f9',
+                        color: product.active ? '#16a34a' : '#64748b',
+                      }}>
+                        {product.active ? 'نشط' : 'غير نشط'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '16px 20px' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => {
+                            setEditingProduct(product);
+                            setShowModal(true);
+                          }}
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            color: '#64748b',
+                          }}
+                        >
+                          <Edit2 style={{ width: '16px', height: '16px' }} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#fef2f2',
+                            border: '1px solid #fecaca',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            color: '#dc2626',
+                          }}
+                        >
+                          <Trash2 style={{ width: '16px', height: '16px' }} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-800/30 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-gray-800/80 flex items-center justify-center text-lg">
-                            {product.emoji || '☕'}
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-medium text-white">{product.name}</p>
-                            {product.description && (
-                              <p className="text-[11px] text-gray-500 max-w-xs truncate">{product.description}</p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 text-[13px] text-gray-400">
-                        {categories.find((c) => c.id === product.category)?.name || product.category}
-                      </td>
-                      <td className="px-5 py-3.5 text-[13px] font-medium text-white">
-                        {product.price.toFixed(3)} ر.ع
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium border ${
-                          product.active
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                            : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                        }`}>
-                          {product.active ? 'نشط' : 'غير نشط'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingProduct(product);
-                              setShowModal(true);
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800/60 rounded transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(product.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {/* Modal */}
       {showModal && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '20px',
+          }}
           onClick={() => {
             setShowModal(false);
             setEditingProduct(null);
           }}
         >
           <div 
-            className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-xl shadow-modal animate-slide-up"
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              backgroundColor: '#ffffff',
+              borderRadius: '20px',
+              overflow: 'hidden',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-              <h2 className="text-[15px] font-semibold text-white">
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '20px 24px',
+              borderBottom: '1px solid #e2e8f0',
+            }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
                 {editingProduct ? 'تعديل منتج' : 'إضافة منتج جديد'}
               </h2>
               <button
@@ -241,50 +352,107 @@ export default function ProductsPage() {
                   setShowModal(false);
                   setEditingProduct(null);
                 }}
-                className="p-1 text-gray-500 hover:text-white hover:bg-gray-800 rounded transition-colors"
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#f8fafc',
+                  border: 'none',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                }}
               >
-                <X className="w-4 h-4" />
+                <X style={{ width: '18px', height: '18px' }} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">اسم المنتج</label>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+              <div style={{ display: 'grid', gap: '20px' }}>
+                {/* Name */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                    اسم المنتج
+                  </label>
                   <input
                     type="text"
                     name="name"
                     defaultValue={editingProduct?.name}
                     required
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      outline: 'none',
+                    }}
                   />
                 </div>
+
+                {/* Price & Emoji */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                      السعر (ر.ع)
+                    </label>
+                    <input
+                      type="number"
+                      name="price"
+                      step="0.001"
+                      defaultValue={editingProduct?.price}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                      الأيقونة
+                    </label>
+                    <input
+                      type="text"
+                      name="emoji"
+                      defaultValue={editingProduct?.emoji || '☕'}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Category */}
                 <div>
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">السعر (ر.ع)</label>
-                  <input
-                    type="number"
-                    name="price"
-                    step="0.001"
-                    defaultValue={editingProduct?.price}
-                    required
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">الأيقونة</label>
-                  <input
-                    type="text"
-                    name="emoji"
-                    defaultValue={editingProduct?.emoji || '☕'}
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">التصنيف</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                    التصنيف
+                  </label>
                   <select
                     name="category"
                     defaultValue={editingProduct?.category}
                     required
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      outline: 'none',
+                      cursor: 'pointer',
+                    }}
                   >
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
@@ -293,30 +461,58 @@ export default function ProductsPage() {
                     ))}
                   </select>
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">الوصف</label>
+
+                {/* Description */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                    الوصف
+                  </label>
                   <textarea
                     name="description"
                     defaultValue={editingProduct?.description}
-                    rows={2}
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600 resize-none"
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      outline: 'none',
+                      resize: 'none',
+                    }}
                   />
                 </div>
-                <div className="col-span-2 flex items-center gap-2">
+
+                {/* Active */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <input
                     type="checkbox"
                     name="active"
                     id="active"
                     defaultChecked={editingProduct?.active !== false}
-                    className="w-4 h-4 rounded bg-gray-800 border-gray-700 text-accent focus:ring-accent"
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
-                  <label htmlFor="active" className="text-[13px] text-gray-300">نشط</label>
+                  <label htmlFor="active" style={{ fontSize: '14px', color: '#475569', cursor: 'pointer' }}>
+                    نشط
+                  </label>
                 </div>
               </div>
-              <div className="flex gap-3 pt-2">
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-[13px] font-medium transition-colors"
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                  }}
                 >
                   حفظ
                 </button>
@@ -326,7 +522,16 @@ export default function ProductsPage() {
                     setShowModal(false);
                     setEditingProduct(null);
                   }}
-                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 rounded-lg text-[13px] font-medium transition-colors"
+                  style={{
+                    padding: '14px 24px',
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: '#475569',
+                    cursor: 'pointer',
+                  }}
                 >
                   إلغاء
                 </button>
@@ -335,6 +540,12 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

@@ -17,66 +17,21 @@ import {
   QrCode,
   BarChart3,
   LogOut,
-  Coffee,
-  ChevronLeft
+  Coffee
 } from 'lucide-react';
 
 const menuItems = [
-  {
-    title: 'لوحة التحكم',
-    href: '/admin',
-    icon: LayoutDashboard,
-  },
-  {
-    title: 'المنيو',
-    href: '/admin/menu',
-    icon: UtensilsCrossed,
-  },
-  {
-    title: 'منيو الموظفين',
-    href: '/admin/staff-menu',
-    icon: Users,
-  },
-  {
-    title: 'إدارة القائمة',
-    href: '/admin/products',
-    icon: ClipboardList,
-  },
-  {
-    title: 'الطلبات',
-    href: '/admin/orders',
-    icon: ShoppingCart,
-  },
-  {
-    title: 'الطاولات',
-    href: '/admin/tables',
-    icon: Grid3X3,
-  },
-  {
-    title: 'الجلسات الخاصة',
-    href: '/admin/rooms',
-    icon: Sofa,
-  },
-  {
-    title: 'إدارة العملاء',
-    href: '/admin/customers',
-    icon: UserCircle,
-  },
-  {
-    title: 'الكاشير',
-    href: '/admin/cashier',
-    icon: Calculator,
-  },
-  {
-    title: 'المخزن',
-    href: '/admin/inventory',
-    icon: Package,
-  },
-  {
-    title: 'نظام الباركود',
-    href: '/admin/barcode',
-    icon: QrCode,
-  },
+  { title: 'لوحة التحكم', href: '/admin', icon: LayoutDashboard },
+  { title: 'المنيو', href: '/admin/menu', icon: UtensilsCrossed },
+  { title: 'منيو الموظفين', href: '/admin/staff-menu', icon: Users },
+  { title: 'إدارة القائمة', href: '/admin/products', icon: ClipboardList },
+  { title: 'الطلبات', href: '/admin/orders', icon: ShoppingCart },
+  { title: 'الطاولات', href: '/admin/tables', icon: Grid3X3 },
+  { title: 'الجلسات الخاصة', href: '/admin/rooms', icon: Sofa },
+  { title: 'إدارة العملاء', href: '/admin/customers', icon: UserCircle },
+  { title: 'الكاشير', href: '/admin/cashier', icon: Calculator },
+  { title: 'المخزن', href: '/admin/inventory', icon: Package },
+  { title: 'نظام الباركود', href: '/admin/barcode', icon: QrCode },
 ];
 
 export default function Sidebar() {
@@ -89,40 +44,83 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed right-0 top-0 h-full w-[260px] bg-white border-l border-gray-100 flex flex-col shadow-sm">
-      {/* Logo Section */}
-      <div className="px-5 py-5 border-b border-gray-100">
-        <Link href="/admin" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
-            <Coffee className="w-5 h-5 text-white" />
+    <aside style={{
+      position: 'fixed',
+      right: 0,
+      top: 0,
+      height: '100vh',
+      width: '260px',
+      backgroundColor: '#ffffff',
+      borderLeft: '1px solid #e2e8f0',
+      display: 'flex',
+      flexDirection: 'column',
+      zIndex: 50,
+    }}>
+      {/* Logo */}
+      <div style={{
+        padding: '20px',
+        borderBottom: '1px solid #e2e8f0',
+      }}>
+        <Link href="/admin" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+          }}>
+            <Coffee style={{ width: '22px', height: '22px', color: '#ffffff' }} />
           </div>
           <div>
-            <h1 className="text-[15px] font-bold text-gray-900">قهوة الشام</h1>
-            <p className="text-[11px] text-gray-400">لوحة الإدارة</p>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>قهوة الشام</div>
+            <div style={{ fontSize: '12px', color: '#64748b' }}>لوحة الإدارة</div>
           </div>
         </Link>
       </div>
 
       {/* User Info */}
       {user && (
-        <div className="px-4 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-3 px-2 py-2 bg-gray-50 rounded-xl">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold shadow-md shadow-indigo-500/20">
+        <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '12px',
+            backgroundColor: '#f8fafc',
+            borderRadius: '12px',
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontSize: '14px',
+              fontWeight: 600,
+            }}>
               {user.name.charAt(0)}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-semibold text-gray-800 truncate">{user.name}</p>
-              <p className="text-[11px] text-gray-400 truncate">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.name}
+              </div>
+              <div style={{ fontSize: '12px', color: '#64748b' }}>
                 {user.role === 'admin' ? 'مدير النظام' : 'موظف'}
-              </p>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Navigation Menu */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        <div className="space-y-1">
+      {/* Navigation */}
+      <nav style={{ flex: 1, padding: '12px', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
@@ -130,51 +128,117 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'bg-indigo-50 text-indigo-600'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  textDecoration: 'none',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  backgroundColor: isActive ? '#eef2ff' : 'transparent',
+                  color: isActive ? '#4f46e5' : '#475569',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.backgroundColor = '#f8fafc';
+                    e.currentTarget.style.color = '#1e293b';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#475569';
+                  }
+                }}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-indigo-100 text-indigo-600' 
-                    : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-700'
-                }`}>
-                  <Icon className="w-[18px] h-[18px]" />
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: isActive ? '#e0e7ff' : '#f1f5f9',
+                  color: isActive ? '#4f46e5' : '#64748b',
+                  transition: 'all 0.2s',
+                }}>
+                  <Icon style={{ width: '18px', height: '18px' }} />
                 </div>
-                <span className="flex-1">{item.title}</span>
-                {isActive && (
-                  <ChevronLeft className="w-4 h-4 text-indigo-400" />
-                )}
+                <span style={{ flex: 1 }}>{item.title}</span>
               </Link>
             );
           })}
         </div>
       </nav>
 
-      {/* Reports Button - Gradient */}
-      <div className="px-3 pb-3">
+      {/* Reports Button */}
+      <div style={{ padding: '12px' }}>
         <Link
           href="/admin/reports"
-          className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200 ${
-            pathname === '/admin/reports'
-              ? 'bg-gradient-to-l from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
-              : 'bg-gradient-to-l from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.02]'
-          }`}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '14px',
+            borderRadius: '12px',
+            textDecoration: 'none',
+            fontSize: '14px',
+            fontWeight: 600,
+            background: pathname === '/admin/reports' 
+              ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)'
+              : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+            color: '#ffffff',
+            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(99, 102, 241, 0.45)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.35)';
+          }}
         >
-          <BarChart3 className="w-5 h-5" />
+          <BarChart3 style={{ width: '20px', height: '20px' }} />
           <span>التقارير</span>
         </Link>
       </div>
 
-      {/* Logout Section */}
-      <div className="px-3 pb-4 pt-2 border-t border-gray-100">
+      {/* Logout */}
+      <div style={{ padding: '12px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '12px',
+            borderRadius: '12px',
+            border: 'none',
+            backgroundColor: 'transparent',
+            fontSize: '13px',
+            fontWeight: 500,
+            color: '#64748b',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#fef2f2';
+            e.currentTarget.style.color = '#dc2626';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#64748b';
+          }}
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut style={{ width: '18px', height: '18px' }} />
           <span>تسجيل الخروج</span>
         </button>
       </div>
