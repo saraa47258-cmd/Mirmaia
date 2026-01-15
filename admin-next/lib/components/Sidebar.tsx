@@ -11,7 +11,7 @@ import {
   ShoppingCart,
   Grid3X3,
   Sofa,
-  UserCircle,
+  UserCog,
   Calculator,
   Package,
   QrCode,
@@ -20,18 +20,19 @@ import {
   Coffee
 } from 'lucide-react';
 
-const menuItems = [
-  { title: 'لوحة التحكم', href: '/admin', icon: LayoutDashboard },
-  { title: 'المنيو', href: '/admin/menu', icon: UtensilsCrossed },
-  { title: 'منيو الموظفين', href: '/admin/staff-menu', icon: Users },
-  { title: 'إدارة القائمة', href: '/admin/products', icon: ClipboardList },
-  { title: 'الطلبات', href: '/admin/orders', icon: ShoppingCart },
-  { title: 'الطاولات', href: '/admin/tables', icon: Grid3X3 },
-  { title: 'الجلسات الخاصة', href: '/admin/rooms', icon: Sofa },
-  { title: 'إدارة العملاء', href: '/admin/customers', icon: UserCircle },
-  { title: 'الكاشير', href: '/admin/cashier', icon: Calculator },
-  { title: 'المخزن', href: '/admin/inventory', icon: Package },
-  { title: 'نظام الباركود', href: '/admin/barcode', icon: QrCode },
+// Menu items with role-based access
+const allMenuItems = [
+  { title: 'لوحة التحكم', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
+  { title: 'المنيو', href: '/admin/menu', icon: UtensilsCrossed, roles: ['admin'] },
+  { title: 'منيو الموظفين', href: '/admin/staff-menu', icon: Users, roles: ['admin', 'cashier', 'staff'] },
+  { title: 'إدارة القائمة', href: '/admin/products', icon: ClipboardList, roles: ['admin'] },
+  { title: 'الطلبات', href: '/admin/orders', icon: ShoppingCart, roles: ['admin', 'cashier', 'staff'] },
+  { title: 'الطاولات', href: '/admin/tables', icon: Grid3X3, roles: ['admin', 'cashier'] },
+  { title: 'الجلسات الخاصة', href: '/admin/rooms', icon: Sofa, roles: ['admin', 'cashier'] },
+  { title: 'إدارة الموظفين', href: '/admin/workers', icon: UserCog, roles: ['admin'] },
+  { title: 'الكاشير', href: '/admin/cashier', icon: Calculator, roles: ['admin', 'cashier'] },
+  { title: 'المخزن', href: '/admin/inventory', icon: Package, roles: ['admin'] },
+  { title: 'نظام الباركود', href: '/admin/barcode', icon: QrCode, roles: ['admin'] },
 ];
 
 export default function Sidebar() {
@@ -121,7 +122,9 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav style={{ flex: 1, padding: '12px', overflowY: 'auto' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {menuItems.map((item) => {
+          {allMenuItems
+            .filter((item) => item.roles.includes(user?.role || 'staff'))
+            .map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
             return (
@@ -174,7 +177,8 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Reports Button */}
+      {/* Reports Button - Admin only */}
+      {user?.role === 'admin' && (
       <div style={{ padding: '12px' }}>
         <Link
           href="/admin/reports"
@@ -208,6 +212,7 @@ export default function Sidebar() {
           <span>التقارير</span>
         </Link>
       </div>
+      )}
 
       {/* Logout */}
       <div style={{ padding: '12px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>

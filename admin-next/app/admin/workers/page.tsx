@@ -1,324 +1,526 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getWorkers, createWorker, updateWorker, deleteWorker, Worker } from '@/lib/firebase/database';
-import Topbar from '@/lib/components/Topbar';
-import { Plus, Edit2, Trash2, X, User, Phone, Shield, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/context/AuthContext';
+import {
+  Employee,
+  EmployeeRole,
+  ROLE_CONFIG,
+  getEmployees,
+  createEmployee,
+  updateEmployee,
+  toggleEmployeeStatus,
+  resetEmployeePassword,
+  deleteEmployee,
+  CreateEmployeeData,
+} from '@/lib/employees';
+import EmployeesTable from '@/lib/components/employees/EmployeesTable';
+import EmployeeModal from '@/lib/components/employees/EmployeeModal';
+import ResetPasswordModal from '@/lib/components/employees/ResetPasswordModal';
+import {
+  Users,
+  Plus,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  UserCheck,
+  UserX,
+  Shield,
+} from 'lucide-react';
 
-export default function WorkersPage() {
-  const [workers, setWorkers] = useState<Worker[]>([]);
+export default function EmployeesPage() {
+  const { user } = useAuth();
+
+  // Data state
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    loadWorkers();
-  }, []);
+  // Filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState<EmployeeRole | 'all'>('all');
 
-  const loadWorkers = async () => {
+  // Modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [resetPasswordEmployee, setResetPasswordEmployee] = useState<Employee | null>(null);
+  const [deleteConfirmEmployee, setDeleteConfirmEmployee] = useState<Employee | null>(null);
+
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Load employees
+  const loadEmployees = async () => {
+    setLoading(true);
     try {
-      const workersData = await getWorkers();
-      setWorkers(workersData);
+      const data = await getEmployees();
+      setEmployees(data);
     } catch (error) {
-      console.error('Error loading workers:', error);
+      console.error('Error loading employees:', error);
+      showToast('خطأ في تحميل الموظفين', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (workerId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا العامل؟')) return;
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  // Toast notification
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // Calculate stats
+  const stats = {
+    total: employees.length,
+    active: employees.filter(e => e.isActive).length,
+    inactive: employees.filter(e => !e.isActive).length,
+    admins: employees.filter(e => e.role === 'admin').length,
+    cashiers: employees.filter(e => e.role === 'cashier').length,
+    staff: employees.filter(e => e.role === 'staff').length,
+  };
+
+  // Handle create employee
+  const handleCreate = async (data: CreateEmployeeData) => {
+    setActionLoading(true);
     try {
-      await deleteWorker(workerId);
-      await loadWorkers();
-    } catch (error) {
-      console.error('Error deleting worker:', error);
+      await createEmployee(data, user?.id || 'system');
+      showToast('تم إضافة الموظف بنجاح', 'success');
+      setShowAddModal(false);
+      loadEmployees();
+    } catch (error: any) {
+      throw error;
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  // Handle update employee
+  const handleUpdate = async (data: { fullName: string; role: EmployeeRole; phone?: string; position?: string }) => {
+    if (!editEmployee) return;
     
-    const workerData: Partial<Worker> = {
-      name: formData.get('name') as string,
-      username: formData.get('username') as string,
-      password: formData.get('password') as string,
-      position: formData.get('position') as string,
-      phone: formData.get('phone') as string || undefined,
-      active: formData.get('active') === 'on',
-      permissions: (formData.get('permissions') as 'full' | 'menu-only') || 'full',
-      role: 'worker',
-    };
-
+    setActionLoading(true);
     try {
-      if (editingWorker) {
-        await updateWorker(editingWorker.id, workerData);
-      } else {
-        await createWorker(workerData as Omit<Worker, 'id'>);
-      }
-      setShowModal(false);
-      setEditingWorker(null);
-      await loadWorkers();
-    } catch (error) {
-      console.error('Error saving worker:', error);
+      await updateEmployee(editEmployee.id, data);
+      showToast('تم تحديث بيانات الموظف', 'success');
+      setEditEmployee(null);
+      loadEmployees();
+    } catch (error: any) {
+      throw error;
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 text-[13px] text-gray-500">جاري التحميل...</p>
-        </div>
-      </div>
-    );
-  }
+  // Handle toggle status
+  const handleToggleStatus = async (employee: Employee) => {
+    setActionLoading(true);
+    try {
+      await toggleEmployeeStatus(employee.id, !employee.isActive);
+      showToast(
+        employee.isActive ? 'تم تعطيل الموظف' : 'تم تفعيل الموظف',
+        'success'
+      );
+      loadEmployees();
+    } catch (error) {
+      console.error('Error toggling status:', error);
+      showToast('حدث خطأ', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle reset password
+  const handleResetPassword = async (newPassword: string) => {
+    if (!resetPasswordEmployee) return;
+
+    setActionLoading(true);
+    try {
+      await resetEmployeePassword(resetPasswordEmployee.id, newPassword);
+      showToast('تم تغيير كلمة المرور بنجاح', 'success');
+      setResetPasswordEmployee(null);
+    } catch (error: any) {
+      throw error;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle delete
+  const handleDelete = async () => {
+    if (!deleteConfirmEmployee) return;
+
+    setActionLoading(true);
+    try {
+      await deleteEmployee(deleteConfirmEmployee.id);
+      showToast('تم حذف الموظف', 'success');
+      setDeleteConfirmEmployee(null);
+      loadEmployees();
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      showToast('حدث خطأ أثناء الحذف', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen">
-      <Topbar title="العمال" subtitle="إدارة بيانات العمال" />
-
-      <div className="p-6 space-y-5">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="text-[13px] text-gray-500">
-            {workers.length} عامل • {workers.filter(w => w.active).length} نشط
-          </div>
+    <div style={{ padding: '0', minHeight: 'calc(100vh - 120px)' }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px',
+        flexWrap: 'wrap',
+        gap: '16px',
+      }}>
+        <div>
+          <h1 style={{
+            fontSize: '24px',
+            fontWeight: 700,
+            color: '#0f172a',
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}>
+            <Users style={{ width: '28px', height: '28px', color: '#6366f1' }} />
+            إدارة الموظفين
+          </h1>
+          <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
+            إدارة حسابات الموظفين والصلاحيات
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px' }}>
           <button
-            onClick={() => {
-              setEditingWorker(null);
-              setShowModal(true);
+            onClick={() => setShowAddModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#ffffff',
+              cursor: 'pointer',
             }}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-[13px] font-medium transition-colors"
           >
-            <Plus className="w-4 h-4" />
-            إضافة عامل
+            <Plus style={{ width: '18px', height: '18px' }} />
+            إضافة موظف
+          </button>
+          <button
+            onClick={loadEmployees}
+            disabled={loading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: '#475569',
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <RefreshCw
+              style={{
+                width: '18px',
+                height: '18px',
+                animation: loading ? 'spin 1s linear infinite' : 'none',
+              }}
+            />
           </button>
         </div>
+      </div>
 
-        {/* Workers Table */}
-        <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-800/60 bg-gray-900/50">
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    العامل
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    المنصب
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    الهاتف
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    الصلاحيات
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    الحالة
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    الإجراءات
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/40">
-                {workers.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-[13px] text-gray-500">
-                      لا يوجد عمال
-                    </td>
-                  </tr>
-                ) : (
-                  workers.map((worker) => (
-                    <tr key={worker.id} className="hover:bg-gray-800/30 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-gray-800/80 flex items-center justify-center text-[12px] font-semibold text-gray-300">
-                            {worker.name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-medium text-white">{worker.name}</p>
-                            <p className="text-[11px] text-gray-500">@{worker.username}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 text-[13px] text-gray-400">
-                        {worker.position}
-                      </td>
-                      <td className="px-5 py-3.5 text-[13px] text-gray-400">
-                        {worker.phone || '-'}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium border ${
-                          worker.permissions === 'full'
-                            ? 'bg-accent/10 text-accent border-accent/20'
-                            : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                        }`}>
-                          {worker.permissions === 'full' ? 'كاملة' : 'منيو فقط'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium border ${
-                          worker.active
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                            : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                        }`}>
-                          {worker.active ? 'نشط' : 'غير نشط'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingWorker(worker);
-                              setShowModal(true);
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800/60 rounded transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(worker.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+      {/* Stats Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+        gap: '16px',
+        marginBottom: '24px',
+      }}>
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '14px',
+          padding: '20px',
+          border: '1px solid #e2e8f0',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Users style={{ width: '22px', height: '22px', color: '#6366f1' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#64748b' }}>إجمالي الموظفين</p>
+              <p style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a' }}>{stats.total}</p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '14px',
+          padding: '20px',
+          border: '1px solid #e2e8f0',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <UserCheck style={{ width: '22px', height: '22px', color: '#22c55e' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#64748b' }}>نشط</p>
+              <p style={{ fontSize: '24px', fontWeight: 700, color: '#22c55e' }}>{stats.active}</p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '14px',
+          padding: '20px',
+          border: '1px solid #e2e8f0',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <UserX style={{ width: '22px', height: '22px', color: '#ef4444' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#64748b' }}>معطل</p>
+              <p style={{ fontSize: '24px', fontWeight: 700, color: '#ef4444' }}>{stats.inactive}</p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '14px',
+          padding: '20px',
+          border: '1px solid #e2e8f0',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              backgroundColor: 'rgba(220, 38, 38, 0.1)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Shield style={{ width: '22px', height: '22px', color: '#dc2626' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#64748b' }}>مدراء</p>
+              <p style={{ fontSize: '24px', fontWeight: 700, color: '#dc2626' }}>{stats.admins}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
-          onClick={() => {
-            setShowModal(false);
-            setEditingWorker(null);
-          }}
-        >
-          <div 
-            className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-xl shadow-modal animate-slide-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-              <h2 className="text-[15px] font-semibold text-white">
-                {editingWorker ? 'تعديل عامل' : 'إضافة عامل جديد'}
-              </h2>
+      {/* Employees Table */}
+      <EmployeesTable
+        employees={employees}
+        loading={loading}
+        searchTerm={searchTerm}
+        filterRole={filterRole}
+        onSearch={setSearchTerm}
+        onFilterRole={setFilterRole}
+        onEdit={(employee) => setEditEmployee(employee)}
+        onToggleStatus={handleToggleStatus}
+        onResetPassword={(employee) => setResetPasswordEmployee(employee)}
+        onDelete={(employee) => setDeleteConfirmEmployee(employee)}
+      />
+
+      {/* Add Employee Modal */}
+      {showAddModal && (
+        <EmployeeModal
+          onClose={() => setShowAddModal(false)}
+          onSave={handleCreate}
+          loading={actionLoading}
+        />
+      )}
+
+      {/* Edit Employee Modal */}
+      {editEmployee && (
+        <EmployeeModal
+          employee={editEmployee}
+          onClose={() => setEditEmployee(null)}
+          onSave={handleUpdate}
+          loading={actionLoading}
+        />
+      )}
+
+      {/* Reset Password Modal */}
+      {resetPasswordEmployee && (
+        <ResetPasswordModal
+          employee={resetPasswordEmployee}
+          onClose={() => setResetPasswordEmployee(null)}
+          onConfirm={handleResetPassword}
+          loading={actionLoading}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmEmployee && (
+        <>
+          <div
+            onClick={() => setDeleteConfirmEmployee(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 100,
+            }}
+          />
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '400px',
+            maxWidth: '95vw',
+            backgroundColor: '#ffffff',
+            borderRadius: '20px',
+            zIndex: 101,
+            padding: '24px',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px',
+            }}>
+              <AlertCircle style={{ width: '32px', height: '32px', color: '#ef4444' }} />
+            </div>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
+              تأكيد الحذف
+            </h3>
+            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>
+              هل أنت متأكد من حذف الموظف "{deleteConfirmEmployee.fullName}"؟
+              <br />
+              <span style={{ color: '#ef4444', fontWeight: 500 }}>هذا الإجراء لا يمكن التراجع عنه.</span>
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
               <button
-                onClick={() => {
-                  setShowModal(false);
-                  setEditingWorker(null);
+                onClick={() => setDeleteConfirmEmployee(null)}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  backgroundColor: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: '#475569',
+                  cursor: 'pointer',
                 }}
-                className="p-1 text-gray-500 hover:text-white hover:bg-gray-800 rounded transition-colors"
               >
-                <X className="w-4 h-4" />
+                إلغاء
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={actionLoading}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  backgroundColor: actionLoading ? '#fca5a5' : '#ef4444',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  cursor: actionLoading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {actionLoading ? 'جاري الحذف...' : 'تأكيد الحذف'}
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">الاسم</label>
-                  <input
-                    type="text"
-                    name="name"
-                    defaultValue={editingWorker?.name}
-                    required
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">اسم المستخدم</label>
-                  <input
-                    type="text"
-                    name="username"
-                    defaultValue={editingWorker?.username}
-                    required
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">كلمة المرور</label>
-                  <input
-                    type="password"
-                    name="password"
-                    defaultValue={editingWorker?.password}
-                    required={!editingWorker}
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">المنصب</label>
-                  <input
-                    type="text"
-                    name="position"
-                    defaultValue={editingWorker?.position}
-                    required
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">رقم الهاتف</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    defaultValue={editingWorker?.phone}
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">الصلاحيات</label>
-                  <select
-                    name="permissions"
-                    defaultValue={editingWorker?.permissions || 'full'}
-                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
-                  >
-                    <option value="full">صلاحيات كاملة</option>
-                    <option value="menu-only">منيو فقط</option>
-                  </select>
-                </div>
-                <div className="col-span-2 flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="active"
-                    id="active"
-                    defaultChecked={editingWorker?.active !== false}
-                    className="w-4 h-4 rounded bg-gray-800 border-gray-700 text-accent focus:ring-accent"
-                  />
-                  <label htmlFor="active" className="text-[13px] text-gray-300">نشط</label>
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-[13px] font-medium transition-colors"
-                >
-                  حفظ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditingWorker(null);
-                  }}
-                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 rounded-lg text-[13px] font-medium transition-colors"
-                >
-                  إلغاء
-                </button>
-              </div>
-            </form>
           </div>
+        </>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '14px 24px',
+          backgroundColor: toast.type === 'success' ? '#22c55e' : '#ef4444',
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          zIndex: 200,
+          animation: 'slideUp 0.3s ease-out',
+        }}>
+          {toast.type === 'success' ? (
+            <CheckCircle style={{ width: '20px', height: '20px', color: '#ffffff' }} />
+          ) : (
+            <AlertCircle style={{ width: '20px', height: '20px', color: '#ffffff' }} />
+          )}
+          <span style={{ fontSize: '14px', fontWeight: 600, color: '#ffffff' }}>
+            {toast.message}
+          </span>
         </div>
       )}
+
+      <style jsx global>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
