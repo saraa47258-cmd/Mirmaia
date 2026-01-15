@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Get Arabic font
-  static String? get _fontFamily => GoogleFonts.cairo().fontFamily;
   // Colors
   static const Color primaryColor = Color(0xFF6366F1);
   static const Color primaryDark = Color(0xFF4F46E5);
@@ -29,34 +27,32 @@ class AppTheme {
 
   // Light Theme
   static ThemeData get lightTheme {
+    final baseTextTheme = GoogleFonts.cairoTextTheme();
+    
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: lightBackground,
-      fontFamily: _fontFamily,
       
       colorScheme: const ColorScheme.light(
         primary: primaryColor,
         secondary: secondaryColor,
         surface: lightSurface,
-        background: lightBackground,
         error: errorColor,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onSurface: lightText,
-        onBackground: lightText,
         onError: Colors.white,
       ),
       
       // AppBar
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: lightSurface,
         foregroundColor: lightText,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontFamily: _fontFamily,
+        titleTextStyle: GoogleFonts.cairo(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: lightText,
@@ -107,8 +103,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(
-            fontFamily: _fontFamily,
+          textStyle: GoogleFonts.cairo(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -139,10 +134,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: lightBackground,
         selectedColor: primaryColor.withOpacity(0.1),
-        labelStyle: const TextStyle(
-          fontFamily: _fontFamily,
-          fontSize: 14,
-        ),
+        labelStyle: GoogleFonts.cairo(fontSize: 14),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -156,69 +148,58 @@ class AppTheme {
       ),
       
       // Text Theme
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          fontFamily: _fontFamily,
+      textTheme: baseTextTheme.copyWith(
+        displayLarge: baseTextTheme.displayLarge?.copyWith(
           fontSize: 32,
           fontWeight: FontWeight.w700,
           color: lightText,
         ),
-        displayMedium: TextStyle(
-          fontFamily: _fontFamily,
+        displayMedium: baseTextTheme.displayMedium?.copyWith(
           fontSize: 28,
           fontWeight: FontWeight.w700,
           color: lightText,
         ),
-        displaySmall: TextStyle(
-          fontFamily: _fontFamily,
+        displaySmall: baseTextTheme.displaySmall?.copyWith(
           fontSize: 24,
           fontWeight: FontWeight.w600,
           color: lightText,
         ),
-        headlineMedium: TextStyle(
-          fontFamily: _fontFamily,
+        headlineMedium: baseTextTheme.headlineMedium?.copyWith(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: lightText,
         ),
-        headlineSmall: TextStyle(
-          fontFamily: _fontFamily,
+        headlineSmall: baseTextTheme.headlineSmall?.copyWith(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: lightText,
         ),
-        titleLarge: TextStyle(
-          fontFamily: _fontFamily,
+        titleLarge: baseTextTheme.titleLarge?.copyWith(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: lightText,
         ),
-        titleMedium: TextStyle(
-          fontFamily: _fontFamily,
+        titleMedium: baseTextTheme.titleMedium?.copyWith(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: lightText,
         ),
-        bodyLarge: TextStyle(
-          fontFamily: _fontFamily,
+        bodyLarge: baseTextTheme.bodyLarge?.copyWith(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: lightText,
         ),
-        bodyMedium: TextStyle(
-          fontFamily: _fontFamily,
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: lightText,
         ),
-        bodySmall: TextStyle(
-          fontFamily: _fontFamily,
+        bodySmall: baseTextTheme.bodySmall?.copyWith(
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: lightTextSecondary,
         ),
-        labelLarge: TextStyle(
-          fontFamily: _fontFamily,
+        labelLarge: baseTextTheme.labelLarge?.copyWith(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: lightText,
@@ -229,31 +210,35 @@ class AppTheme {
 
   // Dark Theme
   static ThemeData get darkTheme {
+    final baseTextTheme = GoogleFonts.cairoTextTheme(ThemeData.dark().textTheme);
+    
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: darkBackground,
-      fontFamily: _fontFamily,
       
       colorScheme: const ColorScheme.dark(
         primary: primaryColor,
         secondary: secondaryColor,
         surface: darkSurface,
-        background: darkBackground,
         error: errorColor,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onSurface: darkText,
-        onBackground: darkText,
         onError: Colors.white,
       ),
       
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: darkSurface,
         foregroundColor: darkText,
         elevation: 0,
         centerTitle: true,
+        titleTextStyle: GoogleFonts.cairo(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: darkText,
+        ),
       ),
       
       cardTheme: CardThemeData(
@@ -284,21 +269,18 @@ class AppTheme {
         hintStyle: const TextStyle(color: darkTextSecondary),
       ),
       
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          fontFamily: _fontFamily,
+      textTheme: baseTextTheme.copyWith(
+        displayLarge: baseTextTheme.displayLarge?.copyWith(
           fontSize: 32,
           fontWeight: FontWeight.w700,
           color: darkText,
         ),
-        bodyLarge: TextStyle(
-          fontFamily: _fontFamily,
+        bodyLarge: baseTextTheme.bodyLarge?.copyWith(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: darkText,
         ),
-        bodySmall: TextStyle(
-          fontFamily: _fontFamily,
+        bodySmall: baseTextTheme.bodySmall?.copyWith(
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: darkTextSecondary,
@@ -307,4 +289,3 @@ class AppTheme {
     );
   }
 }
-
