@@ -8,9 +8,9 @@ export default function AdminLayout({
 }) {
   return (
     <ProtectedRoute requireAdmin>
-      <div className="min-h-screen bg-gray-950">
+      <div className="min-h-screen bg-slate-50">
         <Sidebar />
-        <div className="mr-[240px]">
+        <div className="mr-[260px]">
           {children}
         </div>
       </div>
