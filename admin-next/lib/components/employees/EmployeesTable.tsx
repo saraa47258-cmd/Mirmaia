@@ -277,7 +277,14 @@ export default function EmployeesTable({
               </tr>
             ) : (
               filteredEmployees.map((employee) => {
-                const roleConfig = ROLE_CONFIG[employee.role];
+                // Fallback for unknown roles
+                const roleConfig = ROLE_CONFIG[employee.role] || {
+                  label: employee.role || 'غير محدد',
+                  color: '#64748b',
+                  bgColor: 'rgba(100, 116, 139, 0.1)',
+                  description: '',
+                  permissions: [],
+                };
                 return (
                   <tr
                     key={employee.id}

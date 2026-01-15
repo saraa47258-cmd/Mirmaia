@@ -82,6 +82,14 @@ export const ROLE_CONFIG: Record<EmployeeRole, {
 // Database paths
 const getPath = (collection: string) => `restaurant-system/${collection}/${RESTAURANT_ID}`;
 
+// Normalize role (for backward compatibility with old 'worker' role)
+const normalizeRole = (role: string | undefined): EmployeeRole => {
+  if (!role) return 'staff';
+  if (role === 'worker') return 'staff';
+  if (role === 'admin' || role === 'cashier' || role === 'staff') return role;
+  return 'staff';
+};
+
 // Get all employees
 export const getEmployees = async (): Promise<Employee[]> => {
   const snapshot = await get(ref(database, getPath('workers')));
@@ -94,7 +102,7 @@ export const getEmployees = async (): Promise<Employee[]> => {
       fullName: employee.name || employee.fullName || '',
       username: employee.username || '',
       email: employee.email,
-      role: employee.role || 'staff',
+      role: normalizeRole(employee.role),
       isActive: employee.active !== false && employee.isActive !== false,
       phone: employee.phone,
       position: employee.position,
@@ -119,7 +127,7 @@ export const getEmployee = async (employeeId: string): Promise<Employee | null> 
     fullName: employee.name || employee.fullName || '',
     username: employee.username || '',
     email: employee.email,
-    role: employee.role || 'staff',
+    role: normalizeRole(employee.role),
     isActive: employee.active !== false && employee.isActive !== false,
     phone: employee.phone,
     position: employee.position,
@@ -257,7 +265,7 @@ export const authenticateEmployee = async (
         uid: employee.uid || id,
         fullName: employee.name || employee.fullName || '',
         username: employee.username,
-        role: employee.role || 'staff',
+        role: normalizeRole(employee.role),
         isActive: true,
         createdAt: employee.createdAt,
         permissions: employee.permissions,
