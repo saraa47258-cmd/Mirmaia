@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
-import { Cairo } from "next/font/google";
 import "./globals.css";
 
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  variable: "--font-cairo",
-});
-
 export const metadata: Metadata = {
-  title: "قهوة الشام | لوحة التحكم",
-  description: "نظام إدارة المقهى المتكامل",
+  title: "قهوة الشام - لوحة التحكم",
+  description: "لوحة تحكم إدارة قهوة الشام",
 };
 
 export default function RootLayout({
@@ -19,7 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl">
-      <body className={`${cairo.variable} font-sans antialiased`}>
+      <body className="antialiased">
         {children}
       </body>
     </html>

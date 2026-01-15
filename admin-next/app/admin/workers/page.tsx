@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { getWorkers, createWorker, updateWorker, deleteWorker, Worker } from '@/lib/firebase/database';
+import Topbar from '@/lib/components/Topbar';
+import { Plus, Edit2, Trash2, X, User, Phone, Shield, Check } from 'lucide-react';
 
 export default function WorkersPage() {
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -31,7 +33,6 @@ export default function WorkersPage() {
       await loadWorkers();
     } catch (error) {
       console.error('Error deleting worker:', error);
-      alert('حدث خطأ في حذف العامل');
     }
   };
 
@@ -61,195 +62,245 @@ export default function WorkersPage() {
       await loadWorkers();
     } catch (error) {
       console.error('Error saving worker:', error);
-      alert('حدث خطأ في حفظ العامل');
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
-          <p className="mt-4 text-gray-400">جاري التحميل...</p>
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-3 text-[13px] text-gray-500">جاري التحميل...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">العمال</h1>
-          <p className="text-gray-400">إدارة بيانات العمال</p>
-        </div>
-        <button
-          onClick={() => {
-            setEditingWorker(null);
-            setShowModal(true);
-          }}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-orange-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-orange-700 transition-all"
-        >
-          + إضافة عامل
-        </button>
-      </div>
+    <div className="min-h-screen">
+      <Topbar title="العمال" subtitle="إدارة بيانات العمال" />
 
-      {/* Workers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {workers.map((worker) => (
-          <div
-            key={worker.id}
-            className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-purple-500 transition-colors"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-orange-500 flex items-center justify-center text-white font-bold text-xl">
-                  {worker.name.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">{worker.name}</h3>
-                  <p className="text-sm text-gray-400">{worker.position}</p>
-                </div>
-              </div>
-              <span
-                className={`px-2 py-1 rounded text-xs font-semibold ${
-                  worker.active
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-red-500/20 text-red-400'
-                }`}
-              >
-                {worker.active ? 'نشط' : 'غير نشط'}
-              </span>
-            </div>
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <span>👤</span>
-                <span>{worker.username}</span>
-              </div>
-              {worker.phone && (
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <span>📱</span>
-                  <span>{worker.phone}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <span>🔐</span>
-                <span>
-                  {worker.permissions === 'full' ? 'صلاحيات كاملة' : 'منيو فقط'}
-                </span>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setEditingWorker(worker);
-                  setShowModal(true);
-                }}
-                className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 transition-colors"
-              >
-                تعديل
-              </button>
-              <button
-                onClick={() => handleDelete(worker.id)}
-                className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors"
-              >
-                حذف
-              </button>
-            </div>
+      <div className="p-6 space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="text-[13px] text-gray-500">
+            {workers.length} عامل • {workers.filter(w => w.active).length} نشط
           </div>
-        ))}
-      </div>
-
-      {workers.length === 0 && (
-        <div className="text-center py-12 text-gray-400">
-          <p className="text-lg">لا يوجد عمال</p>
+          <button
+            onClick={() => {
+              setEditingWorker(null);
+              setShowModal(true);
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-[13px] font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            إضافة عامل
+          </button>
         </div>
-      )}
+
+        {/* Workers Table */}
+        <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-800/60 bg-gray-900/50">
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    العامل
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    المنصب
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    الهاتف
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    الصلاحيات
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    الحالة
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    الإجراءات
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800/40">
+                {workers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-12 text-center text-[13px] text-gray-500">
+                      لا يوجد عمال
+                    </td>
+                  </tr>
+                ) : (
+                  workers.map((worker) => (
+                    <tr key={worker.id} className="hover:bg-gray-800/30 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-gray-800/80 flex items-center justify-center text-[12px] font-semibold text-gray-300">
+                            {worker.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-medium text-white">{worker.name}</p>
+                            <p className="text-[11px] text-gray-500">@{worker.username}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-[13px] text-gray-400">
+                        {worker.position}
+                      </td>
+                      <td className="px-5 py-3.5 text-[13px] text-gray-400">
+                        {worker.phone || '-'}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium border ${
+                          worker.permissions === 'full'
+                            ? 'bg-accent/10 text-accent border-accent/20'
+                            : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                        }`}>
+                          {worker.permissions === 'full' ? 'كاملة' : 'منيو فقط'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium border ${
+                          worker.active
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                        }`}>
+                          {worker.active ? 'نشط' : 'غير نشط'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingWorker(worker);
+                              setShowModal(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800/60 rounded transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(worker.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
-            <h2 className="text-2xl font-bold text-white mb-6">
-              {editingWorker ? 'تعديل عامل' : 'إضافة عامل جديد'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">الاسم</label>
-                <input
-                  type="text"
-                  name="name"
-                  defaultValue={editingWorker?.name}
-                  required
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
+          onClick={() => {
+            setShowModal(false);
+            setEditingWorker(null);
+          }}
+        >
+          <div 
+            className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-xl shadow-modal animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+              <h2 className="text-[15px] font-semibold text-white">
+                {editingWorker ? 'تعديل عامل' : 'إضافة عامل جديد'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  setEditingWorker(null);
+                }}
+                className="p-1 text-gray-500 hover:text-white hover:bg-gray-800 rounded transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">الاسم</label>
+                  <input
+                    type="text"
+                    name="name"
+                    defaultValue={editingWorker?.name}
+                    required
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">اسم المستخدم</label>
+                  <input
+                    type="text"
+                    name="username"
+                    defaultValue={editingWorker?.username}
+                    required
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">كلمة المرور</label>
+                  <input
+                    type="password"
+                    name="password"
+                    defaultValue={editingWorker?.password}
+                    required={!editingWorker}
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">المنصب</label>
+                  <input
+                    type="text"
+                    name="position"
+                    defaultValue={editingWorker?.position}
+                    required
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">رقم الهاتف</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    defaultValue={editingWorker?.phone}
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">الصلاحيات</label>
+                  <select
+                    name="permissions"
+                    defaultValue={editingWorker?.permissions || 'full'}
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                  >
+                    <option value="full">صلاحيات كاملة</option>
+                    <option value="menu-only">منيو فقط</option>
+                  </select>
+                </div>
+                <div className="col-span-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="active"
+                    id="active"
+                    defaultChecked={editingWorker?.active !== false}
+                    className="w-4 h-4 rounded bg-gray-800 border-gray-700 text-accent focus:ring-accent"
+                  />
+                  <label htmlFor="active" className="text-[13px] text-gray-300">نشط</label>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">اسم المستخدم</label>
-                <input
-                  type="text"
-                  name="username"
-                  defaultValue={editingWorker?.username}
-                  required
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">كلمة المرور</label>
-                <input
-                  type="password"
-                  name="password"
-                  defaultValue={editingWorker?.password}
-                  required={!editingWorker}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                {editingWorker && (
-                  <p className="text-xs text-gray-500 mt-1">اتركه فارغاً للحفاظ على كلمة المرور الحالية</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">المنصب</label>
-                <input
-                  type="text"
-                  name="position"
-                  defaultValue={editingWorker?.position}
-                  required
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">رقم الهاتف</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  defaultValue={editingWorker?.phone}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">الصلاحيات</label>
-                <select
-                  name="permissions"
-                  defaultValue={editingWorker?.permissions || 'full'}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="full">صلاحيات كاملة</option>
-                  <option value="menu-only">منيو فقط</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="active"
-                  defaultChecked={editingWorker?.active !== false}
-                  className="w-4 h-4 rounded bg-gray-700 border-gray-600"
-                />
-                <label className="text-sm text-gray-300">نشط</label>
-              </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-orange-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-orange-700 transition-all"
+                  className="flex-1 px-4 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-[13px] font-medium transition-colors"
                 >
                   حفظ
                 </button>
@@ -259,7 +310,7 @@ export default function WorkersPage() {
                     setShowModal(false);
                     setEditingWorker(null);
                   }}
-                  className="px-6 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 transition-colors"
+                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 rounded-lg text-[13px] font-medium transition-colors"
                 >
                   إلغاء
                 </button>
@@ -271,4 +322,3 @@ export default function WorkersPage() {
     </div>
   );
 }
-

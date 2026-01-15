@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { getProducts, getCategories, createProduct, updateProduct, deleteProduct, Product, Category } from '@/lib/firebase/database';
+import Topbar from '@/lib/components/Topbar';
+import { Plus, Search, Edit2, Trash2, X, MoreHorizontal } from 'lucide-react';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -38,7 +40,6 @@ export default function ProductsPage() {
       await loadData();
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert('حدث خطأ في حذف المنتج');
     }
   };
 
@@ -66,7 +67,6 @@ export default function ProductsPage() {
       await loadData();
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('حدث خطأ في حفظ المنتج');
     }
   };
 
@@ -78,52 +78,37 @@ export default function ProductsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
-          <p className="mt-4 text-gray-400">جاري التحميل...</p>
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-3 text-[13px] text-gray-500">جاري التحميل...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">المنتجات</h1>
-          <p className="text-gray-400">إدارة قائمة المنتجات</p>
-        </div>
-        <button
-          onClick={() => {
-            setEditingProduct(null);
-            setShowModal(true);
-          }}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-orange-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-orange-700 transition-all"
-        >
-          + إضافة منتج
-        </button>
-      </div>
+    <div className="min-h-screen">
+      <Topbar title="المنتجات" subtitle="إدارة قائمة المنتجات" />
 
-      {/* Filters */}
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-2">البحث</label>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="ابحث عن منتج..."
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-2">التصنيف</label>
+      <div className="p-6 space-y-5">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="ابحث عن منتج..."
+                className="w-full sm:w-64 pr-10 pl-4 py-2 bg-gray-900/50 border border-gray-800/60 rounded-lg text-[13px] text-white placeholder-gray-500 focus:outline-none focus:border-gray-700"
+              />
+            </div>
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="px-4 py-2 bg-gray-900/50 border border-gray-800/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-700 appearance-none"
             >
               <option value="all">جميع التصنيفات</option>
               {categories.map((cat) => (
@@ -133,144 +118,205 @@ export default function ProductsPage() {
               ))}
             </select>
           </div>
-        </div>
-      </div>
-
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProducts.map((product) => (
-          <div
-            key={product.id}
-            className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-purple-500 transition-colors"
+          <button
+            onClick={() => {
+              setEditingProduct(null);
+              setShowModal(true);
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-[13px] font-medium transition-colors"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="text-4xl">{product.emoji || '☕'}</div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">{product.name}</h3>
-                  <p className="text-sm text-gray-400">
-                    {categories.find((c) => c.id === product.category)?.name || product.category}
-                  </p>
-                </div>
-              </div>
-              <span
-                className={`px-2 py-1 rounded text-xs font-semibold ${
-                  product.active
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-red-500/20 text-red-400'
-                }`}
-              >
-                {product.active ? 'نشط' : 'غير نشط'}
-              </span>
-            </div>
-            <div className="mb-4">
-              <p className="text-2xl font-bold text-green-400">{product.price.toFixed(3)} ر.ع</p>
-            </div>
-            {product.description && (
-              <p className="text-sm text-gray-400 mb-4 line-clamp-2">{product.description}</p>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setEditingProduct(product);
-                  setShowModal(true);
-                }}
-                className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 transition-colors"
-              >
-                تعديل
-              </button>
-              <button
-                onClick={() => handleDelete(product.id)}
-                className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors"
-              >
-                حذف
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredProducts.length === 0 && (
-        <div className="text-center py-12 text-gray-400">
-          <p className="text-lg">لا توجد منتجات</p>
+            <Plus className="w-4 h-4" />
+            إضافة منتج
+          </button>
         </div>
-      )}
+
+        {/* Products Table */}
+        <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-800/60 bg-gray-900/50">
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    المنتج
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    التصنيف
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    السعر
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    الحالة
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    الإجراءات
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800/40">
+                {filteredProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center text-[13px] text-gray-500">
+                      لا توجد منتجات
+                    </td>
+                  </tr>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <tr key={product.id} className="hover:bg-gray-800/30 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-gray-800/80 flex items-center justify-center text-lg">
+                            {product.emoji || '☕'}
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-medium text-white">{product.name}</p>
+                            {product.description && (
+                              <p className="text-[11px] text-gray-500 max-w-xs truncate">{product.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-[13px] text-gray-400">
+                        {categories.find((c) => c.id === product.category)?.name || product.category}
+                      </td>
+                      <td className="px-5 py-3.5 text-[13px] font-medium text-white">
+                        {product.price.toFixed(3)} ر.ع
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium border ${
+                          product.active
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                        }`}>
+                          {product.active ? 'نشط' : 'غير نشط'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingProduct(product);
+                              setShowModal(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800/60 rounded transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(product.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
-            <h2 className="text-2xl font-bold text-white mb-6">
-              {editingProduct ? 'تعديل منتج' : 'إضافة منتج جديد'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">اسم المنتج</label>
-                <input
-                  type="text"
-                  name="name"
-                  defaultValue={editingProduct?.name}
-                  required
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
+          onClick={() => {
+            setShowModal(false);
+            setEditingProduct(null);
+          }}
+        >
+          <div 
+            className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-xl shadow-modal animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+              <h2 className="text-[15px] font-semibold text-white">
+                {editingProduct ? 'تعديل منتج' : 'إضافة منتج جديد'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  setEditingProduct(null);
+                }}
+                className="p-1 text-gray-500 hover:text-white hover:bg-gray-800 rounded transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">اسم المنتج</label>
+                  <input
+                    type="text"
+                    name="name"
+                    defaultValue={editingProduct?.name}
+                    required
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">السعر (ر.ع)</label>
+                  <input
+                    type="number"
+                    name="price"
+                    step="0.001"
+                    defaultValue={editingProduct?.price}
+                    required
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">الأيقونة</label>
+                  <input
+                    type="text"
+                    name="emoji"
+                    defaultValue={editingProduct?.emoji || '☕'}
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">التصنيف</label>
+                  <select
+                    name="category"
+                    defaultValue={editingProduct?.category}
+                    required
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.icon} {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[12px] font-medium text-gray-400 mb-1.5">الوصف</label>
+                  <textarea
+                    name="description"
+                    defaultValue={editingProduct?.description}
+                    rows={2}
+                    className="w-full px-3 py-2 bg-gray-800/80 border border-gray-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:border-gray-600 resize-none"
+                  />
+                </div>
+                <div className="col-span-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="active"
+                    id="active"
+                    defaultChecked={editingProduct?.active !== false}
+                    className="w-4 h-4 rounded bg-gray-800 border-gray-700 text-accent focus:ring-accent"
+                  />
+                  <label htmlFor="active" className="text-[13px] text-gray-300">نشط</label>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">السعر (ر.ع)</label>
-                <input
-                  type="number"
-                  name="price"
-                  step="0.001"
-                  defaultValue={editingProduct?.price}
-                  required
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">التصنيف</label>
-                <select
-                  name="category"
-                  defaultValue={editingProduct?.category}
-                  required
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.icon} {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">الأيقونة</label>
-                <input
-                  type="text"
-                  name="emoji"
-                  defaultValue={editingProduct?.emoji || '☕'}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">الوصف</label>
-                <textarea
-                  name="description"
-                  defaultValue={editingProduct?.description}
-                  rows={3}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="active"
-                  defaultChecked={editingProduct?.active !== false}
-                  className="w-4 h-4 rounded bg-gray-700 border-gray-600"
-                />
-                <label className="text-sm text-gray-300">نشط</label>
-              </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-orange-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-orange-700 transition-all"
+                  className="flex-1 px-4 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-[13px] font-medium transition-colors"
                 >
                   حفظ
                 </button>
@@ -280,7 +326,7 @@ export default function ProductsPage() {
                     setShowModal(false);
                     setEditingProduct(null);
                   }}
-                  className="px-6 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 transition-colors"
+                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 rounded-lg text-[13px] font-medium transition-colors"
                 >
                   إلغاء
                 </button>
@@ -292,4 +338,3 @@ export default function ProductsPage() {
     </div>
   );
 }
-

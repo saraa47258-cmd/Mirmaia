@@ -1,93 +1,65 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getSalesStats, getOrders, Order } from '@/lib/firebase/database';
+import { getSalesStats } from '@/lib/firebase/database';
+import Topbar from '@/lib/components/Topbar';
+import { Calendar, Download, TrendingUp, DollarSign, ShoppingBag, Package } from 'lucide-react';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 
 export default function ReportsPage() {
-  const [stats, setStats] = useState({
-    totalRevenue: 0,
-    ordersCount: 0,
-    paidOrders: 0,
-    itemsSold: 0,
-    averageOrder: 0,
-  });
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'year' | 'custom'>('today');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [topProducts, setTopProducts] = useState<Array<{ name: string; quantity: number; revenue: number }>>([]);
+  const [dateRange, setDateRange] = useState('week');
+
+  // Mock data for demonstration
+  const revenueData = [
+    { date: 'السبت', revenue: 45, orders: 12 },
+    { date: 'الأحد', revenue: 52, orders: 15 },
+    { date: 'الاثنين', revenue: 38, orders: 10 },
+    { date: 'الثلاثاء', revenue: 65, orders: 18 },
+    { date: 'الأربعاء', revenue: 48, orders: 14 },
+    { date: 'الخميس', revenue: 72, orders: 22 },
+    { date: 'الجمعة', revenue: 85, orders: 28 },
+  ];
+
+  const categoryData = [
+    { name: 'مشروبات ساخنة', value: 35, color: '#635bff' },
+    { name: 'مشروبات باردة', value: 25, color: '#22c55e' },
+    { name: 'شيشة', value: 20, color: '#f59e0b' },
+    { name: 'حلويات', value: 12, color: '#ec4899' },
+    { name: 'أخرى', value: 8, color: '#6b7280' },
+  ];
+
+  const topProducts = [
+    { name: 'قهوة عربية', sales: 145, revenue: 72.5 },
+    { name: 'شيشة تفاحتين', sales: 98, revenue: 245 },
+    { name: 'لاتيه', sales: 87, revenue: 130.5 },
+    { name: 'شاي أحمر', sales: 76, revenue: 38 },
+    { name: 'عصير برتقال', sales: 65, revenue: 65 },
+  ];
 
   useEffect(() => {
-    loadStats();
-  }, [dateRange, startDate, endDate]);
+    loadData();
+  }, [dateRange]);
 
-  const loadStats = async () => {
-    setLoading(true);
+  const loadData = async () => {
     try {
-      let start: Date | undefined;
-      let end: Date | undefined;
-
-      const now = new Date();
-      switch (dateRange) {
-        case 'today':
-          start = new Date(now.setHours(0, 0, 0, 0));
-          end = new Date();
-          break;
-        case 'week':
-          start = new Date(now.setDate(now.getDate() - 7));
-          end = new Date();
-          break;
-        case 'month':
-          start = new Date(now.setMonth(now.getMonth() - 1));
-          end = new Date();
-          break;
-        case 'year':
-          start = new Date(now.setFullYear(now.getFullYear() - 1));
-          end = new Date();
-          break;
-        case 'custom':
-          if (startDate && endDate) {
-            start = new Date(startDate);
-            end = new Date(endDate);
-          }
-          break;
-      }
-
-      const salesData = await getSalesStats(start, end);
-      setStats(salesData);
-
-      // Calculate top products
-      const orders = await getOrders();
-      let filteredOrders = orders.filter((o) => o.status !== 'cancelled');
-      
-      if (start && end) {
-        const startTime = start.getTime();
-        const endTime = end.getTime();
-        filteredOrders = filteredOrders.filter((order) => {
-          const orderTime = order.timestamp || (order.createdAt ? new Date(order.createdAt).getTime() : 0);
-          return orderTime >= startTime && orderTime <= endTime;
-        });
-      }
-
-      const productMap = new Map<string, { quantity: number; revenue: number }>();
-      filteredOrders.forEach((order) => {
-        order.items.forEach((item) => {
-          const existing = productMap.get(item.name) || { quantity: 0, revenue: 0 };
-          productMap.set(item.name, {
-            quantity: existing.quantity + item.quantity,
-            revenue: existing.revenue + (item.price * item.quantity),
-          });
-        });
-      });
-
-      const topProductsList = Array.from(productMap.entries())
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 10);
-
-      setTopProducts(topProductsList);
+      await getSalesStats();
     } catch (error) {
-      console.error('Error loading stats:', error);
+      console.error('Error loading reports:', error);
     } finally {
       setLoading(false);
     }
@@ -95,141 +67,151 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
-          <p className="mt-4 text-gray-400">جاري التحميل...</p>
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-3 text-[13px] text-gray-500">جاري التحميل...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">التقارير والإحصائيات</h1>
-        <p className="text-gray-400">تحليل الأداء والمبيعات</p>
-      </div>
+    <div className="min-h-screen">
+      <Topbar title="التقارير" subtitle="تحليلات وإحصائيات المبيعات" />
 
-      {/* Date Range Filter */}
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <div className="flex flex-wrap gap-3 items-center">
-          <span className="text-sm font-semibold text-gray-300">الفترة:</span>
-          {(['today', 'week', 'month', 'year', 'custom'] as const).map((range) => (
-            <button
-              key={range}
-              onClick={() => setDateRange(range)}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                dateRange === range
-                  ? 'bg-gradient-to-r from-purple-600 to-orange-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {range === 'today' && 'اليوم'}
-              {range === 'week' && 'أسبوع'}
-              {range === 'month' && 'شهر'}
-              {range === 'year' && 'سنة'}
-              {range === 'custom' && 'مخصص'}
-            </button>
-          ))}
-          {dateRange === 'custom' && (
-            <div className="flex gap-2">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              />
-            </div>
-          )}
+      <div className="p-6 space-y-5">
+        {/* Date Range Filter */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {['today', 'week', 'month', 'year'].map((range) => (
+              <button
+                key={range}
+                onClick={() => setDateRange(range)}
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
+                  dateRange === range
+                    ? 'bg-accent text-white'
+                    : 'bg-gray-900/50 text-gray-400 hover:text-white border border-gray-800/60'
+                }`}
+              >
+                {range === 'today' && 'اليوم'}
+                {range === 'week' && 'أسبوع'}
+                {range === 'month' && 'شهر'}
+                {range === 'year' && 'سنة'}
+              </button>
+            ))}
+          </div>
+          <button className="flex items-center gap-2 px-4 py-2 bg-gray-900/50 border border-gray-800/60 rounded-lg text-[13px] text-gray-400 hover:text-white hover:border-gray-700 transition-colors">
+            <Download className="w-4 h-4" />
+            تصدير التقرير
+          </button>
         </div>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-2xl">
-              💰
+        {/* Summary Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-gray-900/50 border border-gray-800/60 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign className="w-4 h-4 text-emerald-400" />
+              <span className="text-[11px] text-gray-500 uppercase tracking-wider">الإيرادات</span>
+            </div>
+            <p className="text-xl font-semibold text-white">405.000 <span className="text-[12px] text-gray-500">ر.ع</span></p>
+            <p className="text-[11px] text-emerald-400 mt-1">+12.5% من الفترة السابقة</p>
+          </div>
+          <div className="bg-gray-900/50 border border-gray-800/60 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <ShoppingBag className="w-4 h-4 text-blue-400" />
+              <span className="text-[11px] text-gray-500 uppercase tracking-wider">الطلبات</span>
+            </div>
+            <p className="text-xl font-semibold text-white">119</p>
+            <p className="text-[11px] text-emerald-400 mt-1">+8.2% من الفترة السابقة</p>
+          </div>
+          <div className="bg-gray-900/50 border border-gray-800/60 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Package className="w-4 h-4 text-amber-400" />
+              <span className="text-[11px] text-gray-500 uppercase tracking-wider">متوسط الطلب</span>
+            </div>
+            <p className="text-xl font-semibold text-white">3.400 <span className="text-[12px] text-gray-500">ر.ع</span></p>
+            <p className="text-[11px] text-gray-500 mt-1">ثابت</p>
+          </div>
+          <div className="bg-gray-900/50 border border-gray-800/60 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-4 h-4 text-accent" />
+              <span className="text-[11px] text-gray-500 uppercase tracking-wider">الأصناف</span>
+            </div>
+            <p className="text-xl font-semibold text-white">471</p>
+            <p className="text-[11px] text-emerald-400 mt-1">+15.3% من الفترة السابقة</p>
+          </div>
+        </div>
+
+        {/* Charts Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Revenue Chart */}
+          <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl p-5">
+            <h3 className="text-[14px] font-semibold text-white mb-4">الإيرادات اليومية</h3>
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={revenueData}>
+                <defs>
+                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#635bff" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="#635bff" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
+                <XAxis dataKey="date" stroke="#525252" tick={{ fill: '#737373', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#525252" tick={{ fill: '#737373', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: '#171717', border: '1px solid #262626', borderRadius: '8px', fontSize: '12px' }} />
+                <Area type="monotone" dataKey="revenue" stroke="#635bff" strokeWidth={2} fill="url(#revenueGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Category Distribution */}
+          <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl p-5">
+            <h3 className="text-[14px] font-semibold text-white mb-4">توزيع المبيعات حسب التصنيف</h3>
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ backgroundColor: '#171717', border: '1px solid #262626', borderRadius: '8px', fontSize: '12px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex flex-wrap justify-center gap-3 mt-2">
+              {categoryData.map((cat) => (
+                <div key={cat.name} className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }}></div>
+                  <span className="text-[11px] text-gray-400">{cat.name}</span>
+                </div>
+              ))}
             </div>
           </div>
-          <p className="text-2xl font-bold text-white mb-1">
-            {stats.totalRevenue.toFixed(3)} <span className="text-sm text-gray-400">ر.ع</span>
-          </p>
-          <p className="text-sm text-gray-400">إجمالي الإيرادات</p>
         </div>
 
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-2xl">
-              🛒
-            </div>
+        {/* Top Products */}
+        <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-800/60">
+            <h3 className="text-[14px] font-semibold text-white">أفضل المنتجات مبيعاً</h3>
           </div>
-          <p className="text-2xl font-bold text-white mb-1">{stats.ordersCount}</p>
-          <p className="text-sm text-gray-400">إجمالي الطلبات</p>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-2xl">
-              ✅
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-white mb-1">{stats.paidOrders}</p>
-          <p className="text-sm text-gray-400">الطلبات المدفوعة</p>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-2xl">
-              📊
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-white mb-1">
-            {stats.averageOrder.toFixed(3)} <span className="text-sm text-gray-400">ر.ع</span>
-          </p>
-          <p className="text-sm text-gray-400">متوسط قيمة الطلب</p>
-        </div>
-      </div>
-
-      {/* Top Products */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-        <div className="p-6 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-white">أكثر المنتجات مبيعاً</h2>
-        </div>
-        <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-700/50">
-              <tr>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-300 uppercase">المنتج</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-300 uppercase">الكمية المباعة</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-300 uppercase">إجمالي المبيعات</th>
+            <thead>
+              <tr className="border-b border-gray-800/60 bg-gray-900/30">
+                <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">#</th>
+                <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">المنتج</th>
+                <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">المبيعات</th>
+                <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">الإيرادات</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700">
-              {topProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-6 py-8 text-center text-gray-400">
-                    لا توجد بيانات
-                  </td>
+            <tbody className="divide-y divide-gray-800/40">
+              {topProducts.map((product, idx) => (
+                <tr key={product.name} className="hover:bg-gray-800/30 transition-colors">
+                  <td className="px-5 py-3 text-[13px] text-gray-500">{idx + 1}</td>
+                  <td className="px-5 py-3 text-[13px] font-medium text-white">{product.name}</td>
+                  <td className="px-5 py-3 text-[13px] text-gray-400">{product.sales} وحدة</td>
+                  <td className="px-5 py-3 text-[13px] font-medium text-emerald-400">{product.revenue.toFixed(3)} ر.ع</td>
                 </tr>
-              ) : (
-                topProducts.map((product, index) => (
-                  <tr key={index} className="hover:bg-gray-700/30 transition-colors">
-                    <td className="px-6 py-4 text-sm font-semibold text-white">{product.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-300">{product.quantity}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-green-400">
-                      {product.revenue.toFixed(3)} ر.ع
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
@@ -237,4 +219,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
