@@ -16,11 +16,16 @@ html {
 
 body {
   font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
-  background-color: #f1f5f9 !important;
+  background-color: #f1f5f9;
   color: #1e293b;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Login page override */
+body:has(.login-page) {
+  background: transparent !important;
 }
 
 /* Custom Scrollbar */
