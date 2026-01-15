@@ -14,6 +14,9 @@ export interface Order {
   customerName?: string;
   tableNumber?: string;
   tableId?: string;
+  roomId?: string;
+  roomNumber?: string;
+  orderType?: 'table' | 'room' | 'takeaway';
   workerId?: string;
   workerName?: string;
   createdAt: string;
@@ -119,6 +122,23 @@ export interface Table {
   reservedAt?: string;
   updatedAt?: string;
   createdAt?: string;
+}
+
+export interface Room {
+  id: string;
+  roomNumber: string;
+  name?: string;
+  capacity: number;
+  status: 'available' | 'reserved' | 'occupied';
+  notes?: string;
+  isActive: boolean;
+  activeOrderId?: string | null;
+  activeOrder?: Order | null;
+  reservedBy?: string;
+  reservedAt?: string;
+  hourlyRate?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Database paths
@@ -555,5 +575,175 @@ export const getOrdersByTable = async (tableId: string): Promise<Order[]> => {
       const timeB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
       return timeB - timeA;
     });
+};
+
+// Rooms
+export const getRooms = async (): Promise<Room[]> => {
+  const snapshot = await get(ref(database, getPath('rooms')));
+  const data = snapshot.val() || {};
+  return Object.entries(data)
+    .map(([id, room]: [string, any]) => ({
+      id,
+      ...room,
+    }))
+    .sort((a, b) => {
+      const numA = parseInt(String(a.roomNumber)) || 0;
+      const numB = parseInt(String(b.roomNumber)) || 0;
+      return numA - numB;
+    });
+};
+
+export const getRoom = async (roomId: string): Promise<Room | null> => {
+  const snapshot = await get(ref(database, `${getPath('rooms')}/${roomId}`));
+  if (!snapshot.exists()) return null;
+  return { id: roomId, ...snapshot.val() };
+};
+
+export const listenToRooms = (callback: (rooms: Room[]) => void): () => void => {
+  const roomsRef = ref(database, getPath('rooms'));
+  const listener = onValue(roomsRef, (snapshot) => {
+    const data = snapshot.val() || {};
+    const rooms = Object.entries(data)
+      .map(([id, room]: [string, any]) => ({
+        id,
+        ...room,
+      }))
+      .sort((a, b) => {
+        const numA = parseInt(String(a.roomNumber)) || 0;
+        const numB = parseInt(String(b.roomNumber)) || 0;
+        return numA - numB;
+      });
+    callback(rooms);
+  });
+  return () => off(roomsRef, 'value', listener);
+};
+
+export const createRoom = async (room: Omit<Room, 'id'>): Promise<string> => {
+  const newRef = push(ref(database, getPath('rooms')));
+  await set(newRef, {
+    ...room,
+    status: room.status || 'available',
+    isActive: room.isActive ?? true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  return newRef.key!;
+};
+
+export const updateRoom = async (roomId: string, updates: Partial<Room>): Promise<void> => {
+  await update(ref(database, `${getPath('rooms')}/${roomId}`), {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+};
+
+export const deleteRoom = async (roomId: string): Promise<void> => {
+  await remove(ref(database, `${getPath('rooms')}/${roomId}`));
+};
+
+export const setRoomStatus = async (
+  roomId: string, 
+  status: 'available' | 'reserved' | 'occupied',
+  activeOrderId?: string | null,
+  reservedBy?: string
+): Promise<void> => {
+  const updates: Partial<Room> = {
+    status,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  if (status === 'available') {
+    updates.activeOrderId = null;
+    updates.reservedBy = undefined;
+    updates.reservedAt = undefined;
+  } else if (status === 'reserved') {
+    updates.reservedBy = reservedBy;
+    updates.reservedAt = new Date().toISOString();
+  } else if (status === 'occupied' && activeOrderId) {
+    updates.activeOrderId = activeOrderId;
+  }
+  
+  await update(ref(database, `${getPath('rooms')}/${roomId}`), updates);
+};
+
+export const getRoomWithOrder = async (roomId: string): Promise<Room | null> => {
+  const room = await getRoom(roomId);
+  if (!room) return null;
+  
+  if (room.activeOrderId) {
+    const order = await getOrder(room.activeOrderId);
+    return { ...room, activeOrder: order };
+  }
+  
+  return room;
+};
+
+export const getOrdersByRoom = async (roomId: string): Promise<Order[]> => {
+  const orders = await getOrders();
+  return orders
+    .filter(order => order.roomId === roomId || order.orderType === 'room')
+    .sort((a, b) => {
+      const timeA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
+    });
+};
+
+export const getRoomOrders = async (): Promise<Order[]> => {
+  const orders = await getOrders();
+  return orders
+    .filter(order => order.orderType === 'room' || order.roomId)
+    .sort((a, b) => {
+      const timeA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
+    });
+};
+
+export const getRoomOrdersByDateRange = async (dateRange: DateRange): Promise<Order[]> => {
+  const orders = await getRoomOrders();
+  return orders.filter((order) => {
+    const orderTime = order.timestamp || (order.createdAt ? new Date(order.createdAt).getTime() : 0);
+    return orderTime >= dateRange.start.getTime() && orderTime <= dateRange.end.getTime();
+  });
+};
+
+export const createRoomOrder = async (
+  roomId: string, 
+  orderData: Omit<Order, 'id' | 'createdAt' | 'restaurantId' | 'orderType' | 'roomId'>
+): Promise<string> => {
+  // Get room details
+  const room = await getRoom(roomId);
+  if (!room) throw new Error('Room not found');
+
+  // Create the order
+  const newRef = push(ref(database, getPath('orders')));
+  const order: Order = {
+    id: newRef.key!,
+    ...orderData,
+    roomId,
+    roomNumber: room.roomNumber,
+    orderType: 'room',
+    restaurantId: RESTAURANT_ID,
+    createdAt: new Date().toISOString(),
+    timestamp: Date.now(),
+    status: orderData.status || 'pending',
+    itemsCount: orderData.items.reduce((sum, item) => sum + item.quantity, 0),
+  };
+  await set(newRef, order);
+
+  // Update room status to occupied
+  await setRoomStatus(roomId, 'occupied', newRef.key!);
+
+  return newRef.key!;
+};
+
+export const closeRoomOrder = async (orderId: string, roomId: string): Promise<void> => {
+  // Update order status
+  await updateOrderStatus(orderId, 'completed');
+  await updateOrderPaymentStatus(orderId, 'paid');
+  
+  // Release room
+  await setRoomStatus(roomId, 'available');
 };
 
