@@ -34,6 +34,24 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
+
+# Firebase C++ SDK requires additional C++ runtime libraries
+if(MSVC)
+  # Link against the C++ standard library
+  target_link_libraries(${BINARY_NAME} PRIVATE 
+    "ws2_32.lib"
+    "winhttp.lib"
+    "crypt32.lib"
+    "advapi32.lib"
+    "secur32.lib"
+    "bcrypt.lib"
+  )
+  
+  # Use static C++ runtime for better compatibility
+  set_property(TARGET ${BINARY_NAME} PROPERTY
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

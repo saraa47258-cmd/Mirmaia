@@ -10,12 +10,16 @@ flutter --version
 # يجب أن يكون Flutter 3.16+
 ```
 
-### 2. Visual Studio 2022
+### 2. Visual Studio 2022 (مطلوب - لا يعمل مع 2019)
 تحميل من: https://visualstudio.microsoft.com/
 
-**مهم:** يجب تثبيت:
-- Desktop development with C++
-- Windows 10/11 SDK
+**مهم جداً:** 
+- يجب استخدام **Visual Studio 2022** (ليس 2019)
+- Firebase C++ SDK يتطلب Visual Studio 2022 مع C++20
+- يجب تثبيت:
+  - Desktop development with C++
+  - Windows 10/11 SDK (أحدث إصدار)
+  - C++ CMake tools for Windows
 
 ### 3. تفعيل Windows Desktop
 ```powershell
@@ -99,6 +103,20 @@ Name: "{commondesktop}\Sham Coffee Staff"; Filename: "{app}\sham_coffee_staff.ex
 ```
 
 ## استكشاف الأخطاء
+
+### خطأ: unresolved external symbol __std_init_once_link_alternate_names_and_abort
+**السبب:** استخدام Visual Studio 2019 بدلاً من 2022
+
+**الحل:**
+1. قم بتثبيت **Visual Studio 2022** (Community Edition مجاني)
+2. تأكد من تثبيت "Desktop development with C++"
+3. أعد تشغيل PowerShell/CMD
+4. امسح البناء القديم:
+   ```powershell
+   flutter clean
+   flutter pub get
+   flutter build windows --release
+   ```
 
 ### خطأ: Missing Visual Studio
 ```
