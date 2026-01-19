@@ -4,9 +4,14 @@ import '../models/category_model.dart';
 import '../models/order_model.dart';
 
 class FirestoreService {
+  factory FirestoreService() => _instance;
+  FirestoreService._internal();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   static const String restaurantId = 'sham-coffee-1';
+
+  // Singleton pattern for efficient reuse
+  static final FirestoreService _instance = FirestoreService._internal();
 
   // Helper to get collection path
   String _getPath(String collection) => 'restaurant-system/$collection/$restaurantId';
@@ -23,7 +28,6 @@ class FirestoreService {
 
       return snapshot.docs
           .map((doc) => CategoryModel.fromMap(doc.id, doc.data()))
-          .where((cat) => cat.active)
           .toList();
     } catch (e) {
       print('Error getting categories: $e');
@@ -39,7 +43,6 @@ class FirestoreService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => CategoryModel.fromMap(doc.id, doc.data()))
-            .where((cat) => cat.active)
             .toList());
   }
 
@@ -54,7 +57,7 @@ class FirestoreService {
 
       return snapshot.docs
           .map((doc) => ProductModel.fromMap(doc.id, doc.data()))
-          .where((product) => product.active)
+          .where((product) => product.isAvailable)
           .toList();
     } catch (e) {
       print('Error getting products: $e');
@@ -72,7 +75,7 @@ class FirestoreService {
 
       return snapshot.docs
           .map((doc) => ProductModel.fromMap(doc.id, doc.data()))
-          .where((product) => product.active)
+          .where((product) => product.isAvailable)
           .toList();
     } catch (e) {
       print('Error getting products by category: $e');
@@ -87,7 +90,7 @@ class FirestoreService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => ProductModel.fromMap(doc.id, doc.data()))
-            .where((product) => product.active)
+            .where((product) => product.isAvailable)
             .toList());
   }
 
@@ -101,10 +104,10 @@ class FirestoreService {
 
       if (!productDoc.exists) return null;
 
-      final productData = productDoc.data()!;
+      final productData = Map<String, dynamic>.from(productDoc.data()!);
       
       // Get variations from subcollection if not embedded
-      if (productData['variations'] == null) {
+      if (productData['variants'] == null && productData['variations'] == null) {
         final variationsSnapshot = await _firestore
             .collection(_getPath('menu'))
             .doc(productId)
@@ -113,7 +116,7 @@ class FirestoreService {
             .get();
 
         if (variationsSnapshot.docs.isNotEmpty) {
-          productData['variations'] = variationsSnapshot.docs
+          productData['variants'] = variationsSnapshot.docs
               .map((doc) => {'id': doc.id, ...doc.data()})
               .toList();
         }
@@ -123,6 +126,26 @@ class FirestoreService {
     } catch (e) {
       print('Error getting product with variations: $e');
       return null;
+    }
+  }
+
+  /// Fetch variations for a product
+  Future<List<ProductVariant>> fetchVariations(String productId) async {
+    try {
+      final variationsSnapshot = await _firestore
+          .collection(_getPath('menu'))
+          .doc(productId)
+          .collection('variations')
+          .orderBy('sortOrder')
+          .get();
+
+      return variationsSnapshot.docs
+          .map((doc) => ProductVariant.fromMap({'id': doc.id, ...doc.data()}))
+          .where((v) => v.isDefault != false) // Filter inactive
+          .toList();
+    } catch (e) {
+      print('Error fetching variations: $e');
+      return [];
     }
   }
 
@@ -229,6 +252,70 @@ class FirestoreService {
           });
     } catch (e) {
       print('Error updating order status: $e');
+      rethrow;
+    }
+  }
+
+  /// Complete order and release table/room
+  Future<void> completeOrder(String orderId, {
+    String? tableId,
+    String? roomId,
+    String? orderType,
+  }) async {
+    try {
+      // Update order status
+      await _firestore
+          .collection(_getPath('orders'))
+          .doc(orderId)
+          .update({
+            'status': 'completed',
+            'paid': true,
+            'completedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+      // Release table if applicable
+      if (tableId != null && orderType == 'table') {
+        await updateTableStatus(tableId, 'available');
+      }
+
+      // Release room if applicable
+      if (roomId != null && orderType == 'room') {
+        await updateRoomStatus(roomId, 'available');
+      }
+    } catch (e) {
+      print('Error completing order: $e');
+      rethrow;
+    }
+  }
+
+  /// Cancel order and release table/room
+  Future<void> cancelOrder(String orderId, {
+    String? tableId,
+    String? roomId,
+    String? orderType,
+  }) async {
+    try {
+      // Update order status
+      await _firestore
+          .collection(_getPath('orders'))
+          .doc(orderId)
+          .update({
+            'status': 'cancelled',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+      // Release table if applicable
+      if (tableId != null && orderType == 'table') {
+        await updateTableStatus(tableId, 'available');
+      }
+
+      // Release room if applicable
+      if (roomId != null && orderType == 'room') {
+        await updateRoomStatus(roomId, 'available');
+      }
+    } catch (e) {
+      print('Error cancelling order: $e');
       rethrow;
     }
   }
@@ -359,4 +446,6 @@ class FirestoreService {
             .toList());
   }
 }
+
+
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { CartItem } from '@/lib/pos';
-import { Printer, X } from 'lucide-react';
+import { Printer, X, FileText } from 'lucide-react';
 
 interface ReceiptPrintProps {
   orderNumber: string;
@@ -59,6 +59,98 @@ export default function ReceiptPrint({
       case 'room': return `غرفة ${roomNumber}`;
       case 'takeaway': return 'استلام';
       default: return '';
+    }
+  };
+
+  // Generate text receipt for Notepad printing
+  const generateTextReceipt = () => {
+    const line = '='.repeat(40);
+    const dash = '-'.repeat(40);
+    
+    let text = `
+${line}
+           قهوة الشام
+         SHAM COFFEE
+${line}
+
+رقم الطلب: #${orderNumber}
+التاريخ: ${dateStr}
+الوقت: ${timeStr}
+نوع الطلب: ${getOrderTypeLabel()}
+${customerName ? `العميل: ${customerName}` : ''}
+${cashierName ? `الكاشير: ${cashierName}` : ''}
+
+${dash}
+الأصناف:
+${dash}
+`;
+
+    items.forEach((item) => {
+      const name = item.variationName ? `${item.name} (${item.variationName})` : item.name;
+      text += `${name}\n`;
+      text += `  ${item.quantity} x ${item.unitPrice.toFixed(3)} = ${item.lineTotal.toFixed(3)}\n`;
+      if (item.note) {
+        text += `  ملاحظة: ${item.note}\n`;
+      }
+    });
+
+    text += `
+${dash}
+المجموع الفرعي:     ${subtotal.toFixed(3)} ر.ع
+${discount > 0 ? `الخصم:              -${discount.toFixed(3)} ر.ع\n` : ''}${tax > 0 ? `الضريبة:            ${tax.toFixed(3)} ر.ع\n` : ''}${line}
+الإجمالي:           ${total.toFixed(3)} ر.ع
+${line}
+
+طريقة الدفع: ${paymentMethod === 'cash' ? 'نقدي' : 'بطاقة'}
+${paymentMethod === 'cash' && receivedAmount ? `المبلغ المستلم: ${receivedAmount.toFixed(3)} ر.ع` : ''}
+${paymentMethod === 'cash' && change && change > 0 ? `الباقي: ${change.toFixed(3)} ر.ع` : ''}
+
+${line}
+    شكراً لزيارتكم
+   نتمنى لكم يوماً سعيداً
+${line}
+`;
+
+    return text.trim();
+  };
+
+  // Print using Notepad style (text-based)
+  const handleNotePadPrint = () => {
+    const receiptText = generateTextReceipt();
+    
+    // Open new window with text content
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+          <title>فاتورة #${orderNumber}</title>
+          <meta charset="UTF-8">
+          <style>
+            body {
+              font-family: 'Courier New', monospace;
+              font-size: 12px;
+              padding: 10px;
+              white-space: pre-wrap;
+              direction: ltr;
+              text-align: left;
+            }
+            @media print {
+              body { margin: 0; padding: 5mm; }
+            }
+          </style>
+        </head>
+        <body>${receiptText}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      
+      // Auto print after a short delay
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
     }
   };
 
@@ -380,14 +472,62 @@ export default function ReceiptPrint({
             padding: '16px',
             borderTop: '1px solid #e2e8f0',
             display: 'flex',
-            gap: '12px',
+            flexDirection: 'column',
+            gap: '10px',
           }}
         >
+          {/* Row 1: Print buttons */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={handleNotePadPrint}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '12px',
+                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#ffffff',
+                cursor: 'pointer',
+              }}
+            >
+              <FileText style={{ width: '16px', height: '16px' }} />
+              طباعة نصية
+            </button>
+            <button
+              onClick={handlePrint}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '12px',
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#ffffff',
+                cursor: 'pointer',
+              }}
+            >
+              <Printer style={{ width: '16px', height: '16px' }} />
+              طباعة رسومية
+            </button>
+          </div>
+          
+          {/* Row 2: Close button */}
           <button
             onClick={onClose}
             style={{
-              flex: 1,
-              padding: '14px',
+              width: '100%',
+              padding: '12px',
               backgroundColor: '#f1f5f9',
               border: 'none',
               borderRadius: '12px',
@@ -399,54 +539,13 @@ export default function ReceiptPrint({
           >
             إغلاق
           </button>
-          <button
-            onClick={handlePrint}
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '14px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#ffffff',
-              cursor: 'pointer',
-            }}
-          >
-            <Printer style={{ width: '18px', height: '18px' }} />
-            طباعة
-          </button>
         </div>
       </div>
-
-      {/* Print Styles */}
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #receipt-content,
-          #receipt-content * {
-            visibility: visible;
-          }
-          #receipt-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 80mm;
-            padding: 10mm;
-            background: white;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
     </>
   );
 }
+
+
+
+
 

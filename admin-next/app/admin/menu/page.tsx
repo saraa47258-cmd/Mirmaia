@@ -27,28 +27,49 @@ export default function CustomerMenuPage() {
         getProducts(),
         getCategories(),
       ]);
-      setProducts(productsData.filter(p => p.active));
-      setCategories(categoriesData.filter(c => c.active !== false));
+      // Filter active products (check both active and isActive fields)
+      const activeProducts = productsData.filter(p => 
+        p.active !== false && p.isActive !== false
+      );
+      // Filter active categories (check both active and isActive fields)
+      const activeCategories = categoriesData.filter(c => 
+        c.active !== false && c.isActive !== false
+      );
+      setProducts(activeProducts);
+      setCategories(activeCategories);
+      console.log('Loaded products:', activeProducts.length);
+      console.log('Loaded categories:', activeCategories.length);
     } catch (error) {
       console.error('Error loading menu:', error);
+      // Set empty arrays on error
+      setProducts([]);
+      setCategories([]);
     } finally {
       setLoading(false);
     }
   };
 
   const filteredProducts = products.filter((product) => {
-    if (activeCategory !== 'all' && product.category !== activeCategory) return false;
+    // Match category by both category and categoryId fields
+    if (activeCategory !== 'all' && 
+        product.category !== activeCategory && 
+        product.categoryId !== activeCategory) {
+      return false;
+    }
     if (search) {
       const searchLower = search.toLowerCase();
       return (
         product.name.toLowerCase().includes(searchLower) ||
-        product.description?.toLowerCase().includes(searchLower)
+        product.description?.toLowerCase().includes(searchLower) ||
+        product.nameEn?.toLowerCase().includes(searchLower) ||
+        product.descriptionEn?.toLowerCase().includes(searchLower)
       );
     }
     return true;
   });
 
   const getCategory = (categoryId: string) => {
+    if (!categoryId) return undefined;
     return categories.find(c => c.id === categoryId);
   };
 
@@ -181,4 +202,8 @@ export default function CustomerMenuPage() {
     </div>
   );
 }
+
+
+
+
 

@@ -51,6 +51,15 @@ export interface DailyClosing {
   closedByName?: string;
   closedAt: string;
   timestamp: number;
+  // Enhanced fields for daily closing
+  ordersCount?: number;
+  paidOrdersCount?: number;
+  unpaidOrdersCount?: number;
+  tableOrdersCount?: number;
+  roomOrdersCount?: number;
+  takeawayOrdersCount?: number;
+  isLocked?: boolean;
+  lockedAt?: string;
 }
 
 export interface TopProduct {
@@ -408,12 +417,26 @@ export const createDailyClosing = async (
   }
 
   const closingRef = push(ref(database, getPath('daily_closings')));
-  const closingData: DailyClosing = {
+  
+  // Build data object without undefined values
+  const closingData: any = {
     id: closingRef.key!,
-    ...closing,
+    date: closing.date,
+    openingCash: closing.openingCash,
+    cashSales: closing.cashSales,
+    cardSales: closing.cardSales,
+    totalSales: closing.totalSales,
+    expenses: closing.expenses,
+    actualCash: closing.actualCash,
+    difference: closing.difference,
+    closedBy: closing.closedBy,
     closedAt: new Date().toISOString(),
     timestamp: Date.now(),
   };
+
+  // Add optional fields only if they have values
+  if (closing.notes) closingData.notes = closing.notes;
+  if (closing.closedByName) closingData.closedByName = closing.closedByName;
 
   await set(closingRef, closingData);
   return closingData.id;
@@ -473,7 +496,18 @@ export const formatMonthArabic = (monthStr: string): string => {
 // Calculate today's sales for closing
 export const getTodaySalesForClosing = async (
   date: string
-): Promise<{ cashSales: number; cardSales: number; totalSales: number; ordersCount: number }> => {
+): Promise<{ 
+  cashSales: number; 
+  cardSales: number; 
+  totalSales: number; 
+  ordersCount: number;
+  paidOrdersCount: number;
+  unpaidOrdersCount: number;
+  tableOrdersCount: number;
+  roomOrdersCount: number;
+  takeawayOrdersCount: number;
+  orders: Order[];
+}> => {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);
   const end = new Date(date);
@@ -483,6 +517,7 @@ export const getTodaySalesForClosing = async (
   const completedOrders = orders.filter(o => 
     o.status === 'completed' || o.paymentStatus === 'paid'
   );
+  const allOrders = orders.filter(o => o.status !== 'cancelled');
 
   const cashSales = completedOrders
     .filter(o => o.paymentMethod === 'cash')
@@ -492,11 +527,95 @@ export const getTodaySalesForClosing = async (
     .filter(o => o.paymentMethod === 'card')
     .reduce((sum, o) => sum + (o.total || 0), 0);
 
+  const paidOrdersCount = completedOrders.length;
+  const unpaidOrdersCount = allOrders.filter(o => 
+    o.paymentStatus !== 'paid' && o.status !== 'completed'
+  ).length;
+  
+  const tableOrdersCount = allOrders.filter(o => o.orderType === 'table').length;
+  const roomOrdersCount = allOrders.filter(o => o.orderType === 'room').length;
+  const takeawayOrdersCount = allOrders.filter(o => 
+    o.orderType === 'takeaway' || !o.orderType
+  ).length;
+
   return {
     cashSales,
     cardSales,
     totalSales: cashSales + cardSales,
-    ordersCount: completedOrders.length,
+    ordersCount: allOrders.length,
+    paidOrdersCount,
+    unpaidOrdersCount,
+    tableOrdersCount,
+    roomOrdersCount,
+    takeawayOrdersCount,
+    orders: allOrders,
   };
 };
+
+// Check if a day is already closed
+export const isDayClosed = async (date: string): Promise<boolean> => {
+  const existing = await getDailyClosingByDate(date);
+  return existing !== null;
+};
+
+// Get detailed closing data for a day
+export const getClosingDetails = async (date: string): Promise<DailyClosing | null> => {
+  return getDailyClosingByDate(date);
+};
+
+// Lock a day (no more edits allowed)
+export const lockDay = async (closingId: string): Promise<void> => {
+  const closingRef = ref(database, `${getPath('daily_closings')}/${closingId}`);
+  await update(closingRef, {
+    isLocked: true,
+    lockedAt: new Date().toISOString(),
+  });
+};
+
+// Enhanced createDailyClosing with order details
+export const createEnhancedDailyClosing = async (
+  closing: Omit<DailyClosing, 'id' | 'closedAt' | 'timestamp'>
+): Promise<string> => {
+  // Check if closing already exists for this date
+  const existing = await getDailyClosingByDate(closing.date);
+  if (existing) {
+    throw new Error('تم إغلاق هذا اليوم مسبقاً');
+  }
+
+  const closingRef = push(ref(database, getPath('daily_closings')));
+  
+  const closingData: Record<string, any> = {
+    id: closingRef.key!,
+    date: closing.date,
+    openingCash: closing.openingCash,
+    cashSales: closing.cashSales,
+    cardSales: closing.cardSales,
+    totalSales: closing.totalSales,
+    expenses: closing.expenses,
+    actualCash: closing.actualCash,
+    difference: closing.difference,
+    closedBy: closing.closedBy,
+    closedAt: new Date().toISOString(),
+    timestamp: Date.now(),
+    isLocked: true,
+    lockedAt: new Date().toISOString(),
+  };
+
+  // Add optional fields
+  if (closing.notes) closingData.notes = closing.notes;
+  if (closing.closedByName) closingData.closedByName = closing.closedByName;
+  if (closing.ordersCount !== undefined) closingData.ordersCount = closing.ordersCount;
+  if (closing.paidOrdersCount !== undefined) closingData.paidOrdersCount = closing.paidOrdersCount;
+  if (closing.unpaidOrdersCount !== undefined) closingData.unpaidOrdersCount = closing.unpaidOrdersCount;
+  if (closing.tableOrdersCount !== undefined) closingData.tableOrdersCount = closing.tableOrdersCount;
+  if (closing.roomOrdersCount !== undefined) closingData.roomOrdersCount = closing.roomOrdersCount;
+  if (closing.takeawayOrdersCount !== undefined) closingData.takeawayOrdersCount = closing.takeawayOrdersCount;
+
+  await set(closingRef, closingData);
+  return closingData.id;
+};
+
+
+
+
 

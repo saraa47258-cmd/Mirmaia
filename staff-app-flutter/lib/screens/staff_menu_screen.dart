@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/product_model.dart';
 import '../models/category_model.dart';
-import '../services/firestore_service.dart';
+import '../services/realtime_database_service.dart';
 import '../providers/cart_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/product_card.dart';
@@ -18,7 +18,7 @@ class StaffMenuScreen extends StatefulWidget {
 }
 
 class _StaffMenuScreenState extends State<StaffMenuScreen> {
-  final FirestoreService _firestoreService = FirestoreService();
+  final RealtimeDatabaseService _dbService = RealtimeDatabaseService();
   final TextEditingController _searchController = TextEditingController();
   
   List<CategoryModel> _categories = [];
@@ -42,10 +42,13 @@ class _StaffMenuScreenState extends State<StaffMenuScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
+    print('🔄 StaffMenu: Loading data from Realtime Database...');
     
     try {
-      final categories = await _firestoreService.getCategories();
-      final products = await _firestoreService.getProducts();
+      final categories = await _dbService.getCategories();
+      final products = await _dbService.getProducts();
+      
+      print('✅ StaffMenu: Loaded ${categories.length} categories, ${products.length} products');
       
       setState(() {
         _categories = categories;
@@ -53,6 +56,7 @@ class _StaffMenuScreenState extends State<StaffMenuScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      print('❌ StaffMenu Error loading data: $e');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -66,7 +70,6 @@ class _StaffMenuScreenState extends State<StaffMenuScreen> {
     return _products.where((product) {
       // Category filter
       if (_selectedCategory != 'all' && 
-          product.category != _selectedCategory &&
           product.categoryId != _selectedCategory) {
         return false;
       }
@@ -75,6 +78,7 @@ class _StaffMenuScreenState extends State<StaffMenuScreen> {
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         return product.name.toLowerCase().contains(query) ||
+            product.nameAr.toLowerCase().contains(query) ||
             (product.description?.toLowerCase().contains(query) ?? false);
       }
       
@@ -85,7 +89,7 @@ class _StaffMenuScreenState extends State<StaffMenuScreen> {
   void _handleAddToCart(ProductModel product) {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
     
-    if (product.hasVariations) {
+    if (product.hasVariants) {
       // Show variation dialog
       showDialog(
         context: context,
@@ -95,7 +99,7 @@ class _StaffMenuScreenState extends State<StaffMenuScreen> {
             cartProvider.addItem(product, variation: variation, notes: notes);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('تمت إضافة ${product.name} - ${variation.name}'),
+                content: Text('تمت إضافة ${product.nameAr} - ${variation.nameAr}'),
                 duration: const Duration(seconds: 1),
               ),
             );
@@ -106,7 +110,7 @@ class _StaffMenuScreenState extends State<StaffMenuScreen> {
       cartProvider.addItem(product);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تمت إضافة ${product.name}'),
+          content: Text('تمت إضافة ${product.nameAr}'),
           duration: const Duration(seconds: 1),
         ),
       );
@@ -337,10 +341,6 @@ class _StaffMenuScreenState extends State<StaffMenuScreen> {
 }
 
 class _CategoryChip extends StatelessWidget {
-  final String label;
-  final String? icon;
-  final bool isSelected;
-  final VoidCallback onTap;
 
   const _CategoryChip({
     required this.label,
@@ -348,6 +348,10 @@ class _CategoryChip extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
   });
+  final String label;
+  final String? icon;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -382,4 +386,6 @@ class _CategoryChip extends StatelessWidget {
     );
   }
 }
+
+
 

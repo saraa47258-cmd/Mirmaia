@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Product, Category } from '@/lib/firebase/database';
 import { Search, Package } from 'lucide-react';
 
@@ -10,9 +10,29 @@ interface ProductGridProps {
   onProductClick: (product: Product) => void;
 }
 
+type ScreenSize = 'mobile' | 'tablet' | 'desktop';
+
 export default function ProductGrid({ products, categories, onProductClick }: ProductGridProps) {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [screenSize, setScreenSize] = useState<ScreenSize>('desktop');
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize('mobile');
+      } else if (width < 1024) {
+        setScreenSize('tablet');
+      } else {
+        setScreenSize('desktop');
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -59,32 +79,37 @@ export default function ProductGrid({ products, categories, onProductClick }: Pr
     return `${(product.price || product.basePrice || 0).toFixed(3)}`;
   };
 
+  // Responsive sizing
+  const isMobile = screenSize === 'mobile';
+  const isTablet = screenSize === 'tablet';
+
   return (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100%',
+      height: isMobile ? 'auto' : '100%',
+      minHeight: isMobile ? 'calc(100vh - 200px)' : undefined,
       backgroundColor: '#ffffff',
-      borderRadius: '16px',
+      borderRadius: isMobile ? '12px' : '16px',
       overflow: 'hidden',
       border: '1px solid #e2e8f0',
     }}>
       {/* Search Bar */}
       <div style={{
-        padding: '16px',
+        padding: isMobile ? '12px' : '16px',
         borderBottom: '1px solid #e2e8f0',
       }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
-          padding: '0 14px',
-          height: '48px',
+          padding: isMobile ? '0 12px' : '0 14px',
+          height: isMobile ? '42px' : '48px',
           backgroundColor: '#f8fafc',
           border: '1px solid #e2e8f0',
-          borderRadius: '12px',
+          borderRadius: isMobile ? '10px' : '12px',
         }}>
-          <Search style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
+          <Search style={{ width: isMobile ? '18px' : '20px', height: isMobile ? '18px' : '20px', color: '#94a3b8' }} />
           <input
             type="text"
             value={searchTerm}
@@ -94,7 +119,7 @@ export default function ProductGrid({ products, categories, onProductClick }: Pr
               flex: 1,
               border: 'none',
               outline: 'none',
-              fontSize: '15px',
+              fontSize: isMobile ? '14px' : '15px',
               color: '#0f172a',
               backgroundColor: 'transparent',
             }}
@@ -120,19 +145,20 @@ export default function ProductGrid({ products, categories, onProductClick }: Pr
 
       {/* Category Tabs */}
       <div style={{
-        padding: '12px 16px',
+        padding: isMobile ? '10px 12px' : '12px 16px',
         borderBottom: '1px solid #e2e8f0',
         overflowX: 'auto',
         whiteSpace: 'nowrap',
+        WebkitOverflowScrolling: 'touch',
       }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: isMobile ? '6px' : '8px' }}>
           <button
             onClick={() => setActiveCategory('all')}
             style={{
-              padding: '10px 18px',
-              borderRadius: '10px',
+              padding: isMobile ? '8px 14px' : '10px 18px',
+              borderRadius: isMobile ? '8px' : '10px',
               border: 'none',
-              fontSize: '13px',
+              fontSize: isMobile ? '12px' : '13px',
               fontWeight: 600,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -151,10 +177,10 @@ export default function ProductGrid({ products, categories, onProductClick }: Pr
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '10px 18px',
-                borderRadius: '10px',
+                padding: isMobile ? '8px 14px' : '10px 18px',
+                borderRadius: isMobile ? '8px' : '10px',
                 border: 'none',
-                fontSize: '13px',
+                fontSize: isMobile ? '12px' : '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
@@ -173,7 +199,7 @@ export default function ProductGrid({ products, categories, onProductClick }: Pr
       {/* Products Grid */}
       <div style={{
         flex: 1,
-        padding: '16px',
+        padding: isMobile ? '12px' : '16px',
         overflowY: 'auto',
       }}>
         {filteredProducts.length === 0 ? (
@@ -182,39 +208,43 @@ export default function ProductGrid({ products, categories, onProductClick }: Pr
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '60px 20px',
+            padding: isMobile ? '40px 16px' : '60px 20px',
             textAlign: 'center',
           }}>
-            <Package style={{ width: '48px', height: '48px', color: '#cbd5e1', marginBottom: '16px' }} />
-            <p style={{ fontSize: '16px', color: '#64748b', marginBottom: '4px' }}>
+            <Package style={{ width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', color: '#cbd5e1', marginBottom: '16px' }} />
+            <p style={{ fontSize: isMobile ? '14px' : '16px', color: '#64748b', marginBottom: '4px' }}>
               لا توجد منتجات
             </p>
-            <p style={{ fontSize: '14px', color: '#94a3b8' }}>
+            <p style={{ fontSize: isMobile ? '12px' : '14px', color: '#94a3b8' }}>
               {searchTerm ? 'جرب كلمة بحث مختلفة' : 'اختر تصنيف آخر'}
             </p>
           </div>
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-            gap: '12px',
+            gridTemplateColumns: isMobile 
+              ? 'repeat(auto-fill, minmax(100px, 1fr))' 
+              : isTablet 
+                ? 'repeat(auto-fill, minmax(110px, 1fr))'
+                : 'repeat(auto-fill, minmax(140px, 1fr))',
+            gap: isMobile ? '8px' : '12px',
           }}>
             {filteredProducts.map((product) => (
               <button
                 key={product.id}
                 onClick={() => onProductClick(product)}
                 style={{
-                  padding: '16px 12px',
+                  padding: isMobile ? '12px 8px' : '16px 12px',
                   backgroundColor: '#f8fafc',
                   border: '2px solid transparent',
-                  borderRadius: '14px',
+                  borderRadius: isMobile ? '10px' : '14px',
                   cursor: 'pointer',
                   textAlign: 'center',
                   transition: 'all 0.15s',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: isMobile ? '6px' : '8px',
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.backgroundColor = '#eef2ff';
@@ -227,14 +257,14 @@ export default function ProductGrid({ products, categories, onProductClick }: Pr
               >
                 {/* Product Image/Emoji */}
                 <div style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '12px',
+                  width: isMobile ? '44px' : '56px',
+                  height: isMobile ? '44px' : '56px',
+                  borderRadius: isMobile ? '10px' : '12px',
                   backgroundColor: '#ffffff',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '28px',
+                  fontSize: isMobile ? '22px' : '28px',
                   overflow: 'hidden',
                 }}>
                   {product.imageUrl || product.image ? (
@@ -304,4 +334,8 @@ export default function ProductGrid({ products, categories, onProductClick }: Pr
     </div>
   );
 }
+
+
+
+
 

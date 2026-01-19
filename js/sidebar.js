@@ -7,9 +7,22 @@
     const path = window.location.pathname;
     const page = path.split('/').pop() || 'index.html';
 
-    // التحقق من نوع المستخدم
-    const isAdmin = localStorage.getItem('admin_logged_in') === 'true';
-    const isWorker = localStorage.getItem('worker_logged_in') === 'true';
+    // التحقق من نوع المستخدم (استخدام نظام المصادقة الجديد)
+    let isAdmin = false;
+    let isWorker = false;
+    
+    // محاولة استخدام نظام المصادقة الجديد
+    if (typeof Auth !== 'undefined' && Auth.getCurrentUser) {
+        const currentUser = Auth.getCurrentUser();
+        if (currentUser) {
+            isAdmin = currentUser.role === 'admin';
+            isWorker = currentUser.role === 'worker';
+        }
+    } else {
+        // Fallback للتوافق مع الكود القديم
+        isAdmin = sessionStorage.getItem('auth_user_type') === 'admin';
+        isWorker = sessionStorage.getItem('auth_user_type') === 'worker';
+    }
 
     // قائمة الأدمن (جميع الصفحات)
     const adminMenuItems = [
@@ -42,7 +55,26 @@
 
     // اختيار القائمة المناسبة
     let menuItems;
-    const workerPermissions = localStorage.getItem('worker_permissions') || 'full';
+    let workerPermissions = 'full';
+    
+    // محاولة الحصول على الصلاحيات من نظام المصادقة الجديد
+    if (typeof Auth !== 'undefined' && Auth.getCurrentUser) {
+        const currentUser = Auth.getCurrentUser();
+        if (currentUser && currentUser.permissions) {
+            workerPermissions = currentUser.permissions;
+        }
+    } else {
+        // Fallback
+        const userDataStr = sessionStorage.getItem('auth_user_data');
+        if (userDataStr) {
+            try {
+                const userData = JSON.parse(userDataStr);
+                workerPermissions = userData.permissions || 'full';
+            } catch (e) {
+                workerPermissions = 'full';
+            }
+        }
+    }
     
     if (isWorker) {
         // للعامل: حسب الصلاحيات
@@ -60,9 +92,29 @@
     }
 
     // معلومات المستخدم
-    const userName = isAdmin ? (localStorage.getItem('admin_name') || 'مدير النظام') : 
-                   (isWorker ? (localStorage.getItem('worker_name') || 'عامل') : 'مستخدم');
-    const userRole = isAdmin ? 'أدمن' : (isWorker ? 'عامل' : 'مستخدم');
+    let userName = 'مستخدم';
+    let userRole = 'مستخدم';
+    
+    if (typeof Auth !== 'undefined' && Auth.getCurrentUser) {
+        const currentUser = Auth.getCurrentUser();
+        if (currentUser) {
+            userName = currentUser.name || (isAdmin ? 'مدير النظام' : 'عامل');
+            userRole = isAdmin ? 'أدمن' : (isWorker ? 'عامل' : 'مستخدم');
+        }
+    } else {
+        // Fallback
+        const userDataStr = sessionStorage.getItem('auth_user_data');
+        if (userDataStr) {
+            try {
+                const userData = JSON.parse(userDataStr);
+                userName = userData.name || (isAdmin ? 'مدير النظام' : 'عامل');
+                userRole = isAdmin ? 'أدمن' : (isWorker ? 'عامل' : 'مستخدم');
+            } catch (e) {
+                userName = isAdmin ? 'مدير النظام' : (isWorker ? 'عامل' : 'مستخدم');
+                userRole = isAdmin ? 'أدمن' : (isWorker ? 'عامل' : 'مستخدم');
+            }
+        }
+    }
 
     let sidebarHTML = `
         <div class="sidebar-header">
@@ -78,8 +130,8 @@
 
     // التأكد من أن العامل لا يرى عناصر إدارية
     if (isWorker) {
-        // للعامل: فقط عرض عناصر workerMenuItems
-        workerMenuItems.forEach(item => {
+        // للعامل: فقط عرض العناصر المسموحة حسب الصلاحيات
+        menuItems.forEach(item => {
             let isActive = page === item.link;
             sidebarHTML += `
                 <a href="${item.link}" class="nav-item ${isActive ? 'active' : ''}" data-section="${item.id}">
@@ -88,6 +140,15 @@
                 </a>
             `;
         });
+        
+        // إضافة شارة الصلاحيات للعامل بصلاحيات منيو فقط
+        if (workerPermissions === 'menu-only') {
+            sidebarHTML += `
+                <div style="padding: 10px; margin: 10px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; text-align: center; font-size: 12px; color: #fca5a5;">
+                    🔒 صلاحيات منيو فقط
+                </div>
+            `;
+        }
     } else {
         // للأدمن أو غير المسجلين
         menuItems.forEach(item => {
@@ -172,23 +233,26 @@ if (localStorage.getItem('bon-theme') === 'light') {
 }
 
 // تسجيل الخروج
-function logout() {
+async function logout() {
     if (confirm('هل تريد تسجيل الخروج؟')) {
-        const isWorker = localStorage.getItem('worker_logged_in') === 'true';
-        
-        localStorage.removeItem('admin_logged_in');
-        localStorage.removeItem('admin_username');
-        localStorage.removeItem('admin_name');
-        localStorage.removeItem('admin_role');
-        localStorage.removeItem('worker_logged_in');
-        localStorage.removeItem('worker_username');
-        localStorage.removeItem('worker_name');
-        localStorage.removeItem('worker_role');
-        localStorage.removeItem('worker_position');
-        localStorage.removeItem('worker_id');
-        localStorage.removeItem('restaurant_id');
-        
-        // توجيه حسب نوع المستخدم
-        window.location.href = isWorker ? 'login-worker.html' : 'login-admin.html';
+        try {
+            // استخدام نظام المصادقة الجديد
+            if (typeof Auth !== 'undefined' && Auth.logout) {
+                await Auth.logout();
+            } else {
+                // Fallback - مسح sessionStorage
+                sessionStorage.clear();
+            }
+            
+            // توجيه لتسجيل الدخول
+            window.location.href = 'login-admin.html';
+        } catch (error) {
+            if (typeof ErrorHandler !== 'undefined') {
+                ErrorHandler.handleError(error, 'تسجيل الخروج', 'error');
+            }
+            // حتى في حالة الخطأ، مسح البيانات المحلية
+            sessionStorage.clear();
+            window.location.href = 'login-admin.html';
+        }
     }
 }

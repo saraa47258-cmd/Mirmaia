@@ -37,7 +37,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 
 # Firebase C++ SDK requires additional C++ runtime libraries
 if(MSVC)
-  # Link against the C++ standard library
+  # Link against Windows system libraries required by Firebase
   target_link_libraries(${BINARY_NAME} PRIVATE 
     "ws2_32.lib"
     "winhttp.lib"
@@ -45,11 +45,19 @@ if(MSVC)
     "advapi32.lib"
     "secur32.lib"
     "bcrypt.lib"
+    "shlwapi.lib"
   )
   
-  # Use static C++ runtime for better compatibility
+  # Ensure dynamic C++ runtime is used (already set in APPLY_STANDARD_SETTINGS)
+  # This is required for Firebase C++ SDK compatibility
   set_property(TARGET ${BINARY_NAME} PROPERTY
-    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+  
+  # Add linker flags to resolve missing C++ standard library symbols
+  # Exclude static C++ runtime to force dynamic linking
+  target_link_options(${BINARY_NAME} PRIVATE /NODEFAULTLIB:libcpmt)
+  target_link_options(${BINARY_NAME} PRIVATE /NODEFAULTLIB:libcmt)
+  target_link_options(${BINARY_NAME} PRIVATE /NODEFAULTLIB:libcmtd)
 endif()
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")

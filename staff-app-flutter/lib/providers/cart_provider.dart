@@ -1,48 +1,50 @@
 import 'package:flutter/foundation.dart';
 import '../models/product_model.dart';
 import '../models/order_model.dart';
-import '../services/firestore_service.dart';
+import '../services/realtime_database_service.dart';
 
 class CartItem {
-  final ProductModel product;
-  final ProductVariation? variation;
-  int quantity;
-  String? notes;
-
   CartItem({
     required this.product,
     this.variation,
     this.quantity = 1,
     this.notes,
   });
+  
+  final ProductModel product;
+  final ProductVariant? variation;
+  int quantity;
+  String? notes;
 
   String get id => variation != null 
       ? '${product.id}_${variation!.id}' 
       : product.id;
 
-  double get price => variation?.price ?? product.price;
+  double get price => variation != null 
+      ? product.price + variation!.priceModifier 
+      : product.price;
 
   double get total => price * quantity;
 
   String get displayName => variation != null 
-      ? '${product.name} - ${variation!.name}' 
-      : product.name;
+      ? '${product.nameAr} - ${variation!.nameAr}' 
+      : product.nameAr;
 
   OrderItem toOrderItem() {
     return OrderItem(
       productId: product.id,
-      name: product.name,
-      price: price,
+      productName: product.nameAr,
+      variantName: variation?.nameAr,
       quantity: quantity,
-      emoji: product.emoji,
+      unitPrice: price,
+      totalPrice: total,
       notes: notes,
-      variation: variation,
     );
   }
 }
 
 class CartProvider with ChangeNotifier {
-  final FirestoreService _firestoreService = FirestoreService();
+  final RealtimeDatabaseService _dbService = RealtimeDatabaseService();
   
   final List<CartItem> _items = [];
   String? _tableNumber;
@@ -71,7 +73,7 @@ class CartProvider with ChangeNotifier {
   String? get error => _error;
 
   /// Add item to cart
-  void addItem(ProductModel product, {ProductVariation? variation, String? notes}) {
+  void addItem(ProductModel product, {ProductVariant? variation, String? notes}) {
     final id = variation != null ? '${product.id}_${variation.id}' : product.id;
     
     final existingIndex = _items.indexWhere((item) => item.id == id);
@@ -133,11 +135,11 @@ class CartProvider with ChangeNotifier {
   /// Get quantity of a product in cart
   int getQuantity(String productId, {String? variationId}) {
     final id = variationId != null ? '${productId}_$variationId' : productId;
-    final item = _items.firstWhere(
-      (item) => item.id == id,
-      orElse: () => CartItem(product: ProductModel(id: '', name: '', price: 0, category: ''), quantity: 0),
-    );
-    return item.quantity;
+    final index = _items.indexWhere((item) => item.id == id);
+    if (index >= 0) {
+      return _items[index].quantity;
+    }
+    return 0;
   }
 
   /// Set table info
@@ -219,9 +221,19 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final orderItems = _items.map((item) => item.toOrderItem()).toList();
+      // Convert cart items to maps for RTDB
+      final orderItems = _items.map((item) => {
+        'productId': item.product.id,
+        'productName': item.product.nameAr,
+        'variantId': item.variation?.id,
+        'variantName': item.variation?.nameAr,
+        'quantity': item.quantity,
+        'unitPrice': item.price,
+        'totalPrice': item.total,
+        'notes': item.notes,
+      }).toList();
       
-      final orderId = await _firestoreService.createOrder(
+      final orderId = await _dbService.createOrder(
         items: orderItems,
         total: total,
         tableNumber: _tableNumber,
@@ -235,8 +247,14 @@ class CartProvider with ChangeNotifier {
         source: 'staff',
       );
 
-      clear();
-      return orderId;
+      if (orderId != null) {
+        clear();
+        return orderId;
+      } else {
+        _error = 'حدث خطأ في إرسال الطلب';
+        notifyListeners();
+        return null;
+      }
     } catch (e) {
       _error = 'حدث خطأ في إرسال الطلب: ${e.toString()}';
       notifyListeners();
@@ -253,4 +271,3 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 }
-

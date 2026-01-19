@@ -223,6 +223,33 @@
             window.location.href = 'login-worker.html';
         }
         
+        // === نظام الصلاحيات الصارم ===
+        const workerPermissions = localStorage.getItem('worker_permissions') || 'full';
+        const isAdmin = localStorage.getItem('admin_logged_in') === 'true';
+        const isMenuOnly = (workerPermissions === 'menu-only') && !isAdmin;
+        
+        // عند تحميل الصفحة - تطبيق الصلاحيات على الـ sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            if (isMenuOnly) {
+                // إخفاء روابط الـ sidebar للصفحات الممنوعة
+                setTimeout(() => {
+                    const restrictedLinks = document.querySelectorAll('a.nav-item[href="cashier.html"], a.nav-item[href="tables.html"], a.nav-item[href="rooms.html"]');
+                    restrictedLinks.forEach(link => {
+                        link.style.display = 'none';
+                    });
+                    
+                    // إضافة شارة الصلاحيات في الـ sidebar
+                    const sidebar = document.querySelector('.sidebar');
+                    if (sidebar) {
+                        const badge = document.createElement('div');
+                        badge.style.cssText = 'padding: 10px; margin: 10px; background: rgba(239,68,68,0.2); border: 1px solid #ef4444; border-radius: 8px; text-align: center; font-size: 12px; color: #fca5a5;';
+                        badge.innerHTML = '🔒 صلاحيات منيو فقط';
+                        sidebar.insertBefore(badge, sidebar.firstChild);
+                    }
+                }, 100);
+            }
+        });
+        
         // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyB_rkIOsLACagxoSjNUCOPffJzw7Pq9MWc",

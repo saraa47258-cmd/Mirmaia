@@ -76,3 +76,7 @@ export default function CategoryTabs({ categories, activeCategory, onCategoryCha
   );
 }
 
+
+
+
+

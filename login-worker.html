@@ -251,7 +251,10 @@
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="js/firebase-config.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/auth.js"></script>
     <script>
         const RESTAURANT_ID = 'sham-coffee-1';
 
@@ -265,11 +268,12 @@
         };
 
         // تهيئة البيانات التجريبية
-        function initializeDemoData() {
-            const workerRef = firebase.database().ref(`restaurant-system/workers/${RESTAURANT_ID}/${DEMO_WORKER.username}`);
-            workerRef.once('value', (snapshot) => {
+        async function initializeDemoData() {
+            try {
+                const workerRef = firebase.database().ref(`restaurant-system/workers/${RESTAURANT_ID}/${DEMO_WORKER.username}`);
+                const snapshot = await workerRef.once('value');
                 if (!snapshot.exists()) {
-                    workerRef.set({
+                    await workerRef.set({
                         username: DEMO_WORKER.username,
                         password: DEMO_WORKER.password,
                         name: DEMO_WORKER.name,
@@ -279,7 +283,9 @@
                         createdAt: firebase.database.ServerValue.TIMESTAMP
                     });
                 }
-            });
+            } catch (error) {
+                ErrorHandler.handleFirebaseError(error, 'تهيئة بيانات العامل');
+            }
         }
 
         // عرض رسالة خطأ
@@ -307,51 +313,46 @@
             
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            
+            // تعطيل الزر أثناء المعالجة
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تسجيل الدخول...';
 
             if (!username || !password) {
                 showError('يرجى إدخال اسم المستخدم وكلمة المرور');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> تسجيل الدخول';
                 return;
             }
 
             try {
-                const workersRef = firebase.database().ref(`restaurant-system/workers/${RESTAURANT_ID}`);
-                const snapshot = await workersRef.once('value');
-                const workers = snapshot.val() || {};
+                // استخدام نظام المصادقة الجديد
+                const result = await ErrorHandler.safeExecute(
+                    Auth.loginWorker(username, password, RESTAURANT_ID),
+                    'تسجيل دخول العامل',
+                    true
+                );
 
-                let workerFound = null;
-                for (const key in workers) {
-                    const worker = workers[key];
-                    if (worker.username === username && worker.password === password && worker.status === 'active') {
-                        workerFound = { id: key, ...worker };
-                        break;
-                    }
-                }
-
-                if (workerFound) {
-                    // حفظ بيانات الجلسة
-                    localStorage.setItem('worker_logged_in', 'true');
-                    localStorage.setItem('worker_username', workerFound.username);
-                    localStorage.setItem('worker_name', workerFound.name);
-                    localStorage.setItem('worker_role', workerFound.role);
-                    localStorage.setItem('worker_position', workerFound.position || 'عامل');
-                    localStorage.setItem('worker_permissions', workerFound.permissions || 'full');
-                    localStorage.setItem('worker_id', workerFound.id);
-                    localStorage.setItem('restaurant_id', RESTAURANT_ID);
-
+                if (result && result.success) {
                     showSuccess('تم تسجيل الدخول بنجاح! جاري التوجيه...');
                     
                     // التوجيه حسب الصلاحيات
-                    const redirectPage = (workerFound.permissions === 'menu-only') ? 'menu-staff.html' : 'cashier.html';
+                    const redirectPage = (result.user.permissions === 'menu-only') ? 'menu-staff.html' : 'cashier.html';
                     
                     setTimeout(() => {
                         window.location.href = redirectPage;
                     }, 1000);
                 } else {
                     showError('اسم المستخدم أو كلمة المرور غير صحيحة');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> تسجيل الدخول';
                 }
             } catch (error) {
-                console.error('خطأ في تسجيل الدخول:', error);
-                showError('حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.');
+                ErrorHandler.handleError(error, 'تسجيل دخول العامل', 'error');
+                showError(error.message || 'حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> تسجيل الدخول';
             }
         });
 
@@ -359,10 +360,17 @@
         initializeDemoData();
 
         // التحقق من تسجيل الدخول المسبق
-        if (localStorage.getItem('worker_logged_in') === 'true') {
-            const permissions = localStorage.getItem('worker_permissions') || 'full';
-            window.location.href = (permissions === 'menu-only') ? 'menu-staff.html' : 'cashier.html';
-        }
+        (async () => {
+            try {
+                const authCheck = await Auth.checkAuth();
+                if (authCheck.isAuthenticated && authCheck.user && authCheck.user.role === 'worker') {
+                    const redirectPage = (authCheck.user.permissions === 'menu-only') ? 'menu-staff.html' : 'cashier.html';
+                    window.location.href = redirectPage;
+                }
+            } catch (error) {
+                // تجاهل الأخطاء في التحقق الأولي
+            }
+        })();
     </script>
 </body>
 </html>

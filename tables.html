@@ -400,8 +400,9 @@
             document.getElementById('occupied-tables').textContent = occupied;
         }
         
-        function closeTableBill(tableNum) {
-            if (!confirm(`هل تريد إغلاق فاتورة طاولة ${tableNum} وتحويل جميع الطلبات إلى "مدفوعة"؟`)) {
+        function closeTableBill(tableNum, paymentMethod = 'cash') {
+            const methodText = paymentMethod === 'card' ? 'بالبطاقة' : 'نقداً';
+            if (!confirm(`هل تريد إغلاق فاتورة طاولة ${tableNum} وتحويل جميع الطلبات إلى "مدفوعة ${methodText}"؟`)) {
                 return;
             }
             
@@ -418,16 +419,23 @@
                 return;
             }
             
-            // Update all orders to paid
+            const workerName = localStorage.getItem('worker_name') || localStorage.getItem('admin_name') || 'غير محدد';
+            const paidAt = new Date().toISOString();
+            
+            // Update all orders to paid with payment method
             const updates = {};
             tableOrders.forEach(([orderId]) => {
                 updates[`${orderId}/status`] = 'paid';
+                updates[`${orderId}/paymentStatus`] = 'paid';
+                updates[`${orderId}/paymentMethod`] = paymentMethod;
+                updates[`${orderId}/paidAt`] = paidAt;
+                updates[`${orderId}/paidBy`] = workerName;
                 updates[`${orderId}/closedAt`] = firebase.database.ServerValue.TIMESTAMP;
             });
             
             firebase.database().ref(ORDERS_PATH).update(updates)
                 .then(() => {
-                    alert(`تم إغلاق فاتورة طاولة ${tableNum} بنجاح`);
+                    alert(`تم إغلاق فاتورة طاولة ${tableNum} بنجاح (${methodText})`);
                     // Update table status
                     firebase.database().ref(`${TABLES_PATH}/${tableNum}`).update({
                         status: 'available',
@@ -444,6 +452,22 @@
             localStorage.getItem('worker_logged_in') !== 'true') {
             window.location.href = 'login-admin.html';
         }
+        
+        // === نظام الصلاحيات الصارم ===
+        // العامل بصلاحيات منيو فقط لا يمكنه الوصول للطاولات
+        (function checkPermissions() {
+            const isAdmin = localStorage.getItem('admin_logged_in') === 'true';
+            const isWorker = localStorage.getItem('worker_logged_in') === 'true';
+            
+            if (isWorker && !isAdmin) {
+                const workerPermissions = localStorage.getItem('worker_permissions') || 'full';
+                if (workerPermissions === 'menu-only') {
+                    console.warn('🚫 محاولة وصول غير مصرح بها للطاولات - صلاحيات منيو فقط');
+                    alert('⛔ ليس لديك صلاحية للوصول للطاولات.\nسيتم توجيهك لصفحة المنيو.');
+                    window.location.href = 'menu-staff.html';
+                }
+            }
+        })();
     </script>
 </body>
 </html>

@@ -5,6 +5,10 @@ import '../services/auth_service.dart';
 import 'dart:convert';
 
 class AuthProvider with ChangeNotifier {
+
+  AuthProvider() {
+    _loadSavedUser();
+  }
   final AuthService _authService = AuthService();
   
   UserModel? _user;
@@ -18,23 +22,51 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _user != null;
   bool get isInitialized => _isInitialized;
 
-  AuthProvider() {
-    _loadSavedUser();
-  }
-
-  /// Load saved user from SharedPreferences
+  /// Load saved user from SharedPreferences and check Firebase session
   Future<void> _loadSavedUser() async {
     try {
+      // First check Firebase Auth session
+      final currentSessionUser = await _authService.checkCurrentSession();
+      
+      if (currentSessionUser != null) {
+        _user = currentSessionUser;
+        await _saveUser(currentSessionUser);
+        notifyListeners();
+        _isInitialized = true;
+        return;
+      }
+
+      // Fallback to SharedPreferences (legacy)
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString('user');
       
       if (userJson != null) {
         final userData = jsonDecode(userJson);
         _user = UserModel.fromMap(userData['uid'], userData);
+        
+        // Verify user still exists and is active in Firestore
+        try {
+          final verifiedUser = await _authService.checkCurrentSession();
+          if (verifiedUser != null && verifiedUser.isActive) {
+            _user = verifiedUser;
+            await _saveUser(verifiedUser);
+          } else {
+            // User no longer active or doesn't exist
+            _user = null;
+            await _clearSavedUser();
+          }
+        } catch (e) {
+          // If verification fails, clear saved user
+          _user = null;
+          await _clearSavedUser();
+        }
+        
         notifyListeners();
       }
     } catch (e) {
       print('Error loading saved user: $e');
+      _user = null;
+      await _clearSavedUser();
     } finally {
       _isInitialized = true;
       notifyListeners();
@@ -73,13 +105,31 @@ class AuthProvider with ChangeNotifier {
 
     try {
       _user = await _authService.login(username, password);
+      
+      // Verify user is active (should already be checked in service, but double-check)
+      if (!_user!.isActive) {
+        _error = 'الحساب موقوف. يرجى التواصل مع المدير';
+        _user = null;
+        await _authService.logout();
+        await _clearSavedUser();
+        notifyListeners();
+        return false;
+      }
+      
       await _saveUser(_user!);
       _error = null;
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
+      // Clean up on error
       _user = null;
+      try {
+        await _authService.logout();
+        await _clearSavedUser();
+      } catch (_) {
+        // Ignore cleanup errors
+      }
       notifyListeners();
       return false;
     } finally {
@@ -158,4 +208,6 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 }
+
+
 

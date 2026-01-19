@@ -244,3 +244,7 @@ export default function ReportKPIs({ stats, trend, loading }: ReportKPIsProps) {
   );
 }
 
+
+
+
+

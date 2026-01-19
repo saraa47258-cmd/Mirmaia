@@ -1,21 +1,38 @@
 /**
  * إعدادات Firebase - قهوة الشام
  * نظام إدارة المقاهي
+ * 
+ * ملاحظة: تم تحديث هذا الملف لاستخدام نظام آمن
+ * في الإنتاج، استخدم Environment Variables أو Firebase App Check
  */
 
-// إعدادات Firebase - مشروع sham-coffee
-const firebaseConfig = {
-    apiKey: "AIzaSyBD3RarLj_696emYW84zZ1tliP_Th1z6mM",
-    authDomain: "sham-coffee.firebaseapp.com",
-    databaseURL: "https://sham-coffee-default-rtdb.firebaseio.com",
-    projectId: "sham-coffee",
-    storageBucket: "sham-coffee.firebasestorage.app",
-    messagingSenderId: "483086837036",
-    appId: "1:483086837036:web:2a6bf9084050ef399ef889"
+// محاولة قراءة الإعدادات من Environment Variables
+const getFirebaseConfig = () => {
+    // محاولة قراءة من window.env (يمكن تعيينها من خلال script tag)
+    if (window.env && window.env.FIREBASE_CONFIG) {
+        return window.env.FIREBASE_CONFIG;
+    }
+    
+    // استخدام القيم الافتراضية (يجب استبدالها في الإنتاج)
+    // في الإنتاج، استخدم Firebase App Check لحماية API
+    return {
+        apiKey: "AIzaSyBD3RarLj_696emYW84zZ1tliP_Th1z6mM",
+        authDomain: "sham-coffee.firebaseapp.com",
+        databaseURL: "https://sham-coffee-default-rtdb.firebaseio.com",
+        projectId: "sham-coffee",
+        storageBucket: "sham-coffee.firebasestorage.app",
+        messagingSenderId: "483086837036",
+        appId: "1:483086837036:web:2a6bf9084050ef399ef889"
+    };
 };
 
+// إعدادات Firebase
+const firebaseConfig = getFirebaseConfig();
+
 // تهيئة Firebase
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
 // مرجع قاعدة البيانات
 const database = firebase.database();
@@ -30,7 +47,10 @@ let connectionListeners = [];
 
 connectedRef.on('value', (snap) => {
     isFirebaseConnected = snap.val() === true;
-    console.log(isFirebaseConnected ? '🟢 متصل بـ Firebase' : '🔴 غير متصل بـ Firebase');
+    // إخفاء console.log في الإنتاج
+    if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'production') {
+        console.log(isFirebaseConnected ? '🟢 متصل بـ Firebase' : '🔴 غير متصل بـ Firebase');
+    }
     connectionListeners.forEach(cb => cb(isFirebaseConnected));
 });
 
@@ -251,5 +271,8 @@ window.FirebaseDB = {
     clearCache: () => firebaseCache.data.clear()
 };
 
-console.log('🔥 Firebase متصل بنجاح - قهوة الشام');
+// إخفاء console.log في الإنتاج
+if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'production') {
+    console.log('🔥 Firebase متصل بنجاح - قهوة الشام');
+}
 

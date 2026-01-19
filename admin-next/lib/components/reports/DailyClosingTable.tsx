@@ -289,3 +289,7 @@ export default function DailyClosingTable({ closings, loading }: DailyClosingTab
   );
 }
 
+
+
+
+

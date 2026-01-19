@@ -747,3 +747,7 @@ export default function InventoryTable({
   );
 }
 
+
+
+
+

@@ -224,6 +224,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="js/common.js"></script>
     <script src="js/firebase-config.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/auth-check.js"></script>
     <script src="js/init-sample-data.js"></script>
     
     <script src="js/sidebar.js?v=1.1"></script>
@@ -579,47 +582,81 @@
         }
     </script>
     <script>
-        // التحقق من تسجيل الدخول
-        if (localStorage.getItem('admin_logged_in') !== 'true') {
-            window.location.href = 'login-admin.html';
-        }
+        // التحقق من تسجيل الدخول (استخدام نظام المصادقة الجديد)
+        (async () => {
+            try {
+                if (typeof AuthCheck !== 'undefined') {
+                    const isAuthenticated = await AuthCheck.requireAuth('admin', 'login-admin.html');
+                    if (!isAuthenticated) return;
+                } else {
+                    // Fallback للتوافق مع الكود القديم
+                    const authCheck = sessionStorage.getItem('auth_user_type') === 'admin';
+                    if (!authCheck) {
+                        window.location.href = 'login-admin.html';
+                        return;
+                    }
+                }
+            } catch (error) {
+                if (typeof ErrorHandler !== 'undefined') {
+                    ErrorHandler.handleError(error, 'التحقق من المصادقة', 'error');
+                }
+                window.location.href = 'login-admin.html';
+            }
+        })();
 
         // عرض معلومات المستخدم
         function displayUserInfo() {
-            const adminName = localStorage.getItem('admin_name') || 'مدير النظام';
-            const adminRole = localStorage.getItem('admin_role') || 'أدمن';
-            const workerName = localStorage.getItem('worker_name');
-            const workerRole = localStorage.getItem('worker_role');
+            let userName = 'مدير النظام';
+            let userRole = 'أدمن';
+            
+            // استخدام نظام المصادقة الجديد
+            if (typeof AuthCheck !== 'undefined' && AuthCheck.getCurrentUserData) {
+                const userData = AuthCheck.getCurrentUserData();
+                if (userData) {
+                    userName = userData.name || 'مدير النظام';
+                    userRole = userData.role === 'admin' ? 'أدمن' : (userData.role === 'worker' ? 'عامل' : 'مدير');
+                }
+            } else {
+                // Fallback
+                const userDataStr = sessionStorage.getItem('auth_user_data');
+                if (userDataStr) {
+                    try {
+                        const userData = JSON.parse(userDataStr);
+                        userName = userData.name || 'مدير النظام';
+                        userRole = userData.role === 'admin' ? 'أدمن' : (userData.role === 'worker' ? 'عامل' : 'مدير');
+                    } catch (e) {
+                        // استخدام القيم الافتراضية
+                    }
+                }
+            }
             
             const userNameDisplay = document.getElementById('user-name-display');
             const userRoleDisplay = document.getElementById('user-role-display');
             
             if (userNameDisplay && userRoleDisplay) {
-                if (workerName) {
-                    userNameDisplay.textContent = workerName;
-                    userRoleDisplay.textContent = workerRole === 'worker' ? 'عامل' : 'موظف';
-                } else if (adminName) {
-                    userNameDisplay.textContent = adminName;
-                    userRoleDisplay.textContent = adminRole === 'admin' ? 'أدمن' : 'مدير';
-                }
+                userNameDisplay.textContent = userName;
+                userRoleDisplay.textContent = userRole;
             }
         }
 
         // دالة تسجيل الخروج
-        function logout() {
+        async function logout() {
             if (confirm('هل تريد تسجيل الخروج؟')) {
-                localStorage.removeItem('admin_logged_in');
-                localStorage.removeItem('admin_username');
-                localStorage.removeItem('admin_name');
-                localStorage.removeItem('admin_role');
-                localStorage.removeItem('worker_logged_in');
-                localStorage.removeItem('worker_username');
-                localStorage.removeItem('worker_name');
-                localStorage.removeItem('worker_role');
-                localStorage.removeItem('worker_position');
-                localStorage.removeItem('worker_id');
-                localStorage.removeItem('restaurant_id');
-                window.location.href = 'login-admin.html';
+                try {
+                    if (typeof AuthCheck !== 'undefined' && AuthCheck.logout) {
+                        await AuthCheck.logout();
+                    } else {
+                        // Fallback
+                        sessionStorage.clear();
+                        window.location.href = 'login-admin.html';
+                    }
+                } catch (error) {
+                    if (typeof ErrorHandler !== 'undefined') {
+                        ErrorHandler.handleError(error, 'تسجيل الخروج', 'error');
+                    }
+                    sessionStorage.clear();
+                    window.location.href = 'login-admin.html';
+                }
             }
         }
 

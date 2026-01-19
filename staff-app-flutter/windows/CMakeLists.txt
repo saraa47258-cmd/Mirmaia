@@ -1,5 +1,5 @@
 # Project-level configuration.
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20)
 project(sham_coffee_staff LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
@@ -9,6 +9,11 @@ set(BINARY_NAME "sham_coffee_staff")
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
+
+# Fix Firebase C++ SDK CMake compatibility issue
+# Firebase SDK requires CMake 3.5 minimum, but we need to set this before it loads
+# This will be passed to Firebase SDK's CMakeLists.txt
+set(CMAKE_POLICY_VERSION_MINIMUM "3.5" CACHE STRING "Minimum CMake policy version" FORCE)
 
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -42,13 +47,27 @@ add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 # of modifying this function.
 function(APPLY_STANDARD_SETTINGS TARGET)
   # Use C++17 (VS2019 compatible) - Firebase will work with C++17
+  set_property(TARGET ${TARGET} PROPERTY CXX_STANDARD 17)
+  set_property(TARGET ${TARGET} PROPERTY CXX_STANDARD_REQUIRED ON)
   target_compile_features(${TARGET} PUBLIC cxx_std_17)
+  
+  # Add /bigobj flag for large Firebase libraries
+  target_compile_options(${TARGET} PRIVATE /bigobj)
+  
   # Removed /WX to not treat warnings as errors (fixes Firebase SDK issues)
-  target_compile_options(${TARGET} PRIVATE /W4 /wd"4100" /wd"4996")
+  target_compile_options(${TARGET} PRIVATE /W4 /wd"4100" /wd"4996" /wd"4244" /wd"4267")
   target_compile_options(${TARGET} PRIVATE /EHsc)
-  target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
+  
+  # Enable exceptions for Firebase C++ SDK compatibility
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
   target_compile_definitions(${TARGET} PRIVATE "_CRT_SECURE_NO_WARNINGS")
+  target_compile_definitions(${TARGET} PRIVATE "_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS")
+  
+  # Set C++ runtime library to dynamic for Firebase compatibility
+  if(MSVC)
+    set_property(TARGET ${TARGET} PROPERTY
+      MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+  endif()
 endfunction()
 
 # Flutter library and tool build rules.
@@ -62,6 +81,18 @@ add_subdirectory("runner")
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
 include(flutter/generated_plugins.cmake)
+
+# Fix Firebase C++ SDK linking issues on Windows
+# Ensure all targets use the same C++ runtime library
+if(MSVC)
+  # Force dynamic C++ runtime for all targets to match Firebase SDK
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+  
+  # Add global linker flags to exclude static runtime libraries
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcpmt")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmtd")
+endif()
 
 
 # === Installation ===

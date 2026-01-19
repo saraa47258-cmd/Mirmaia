@@ -1,7 +1,7 @@
 'use client';
 
 import { Table, Order } from '@/lib/firebase/database';
-import { Users, Clock, ShoppingBag, Coffee, TreePine, Crown, Umbrella } from 'lucide-react';
+import { Clock, ShoppingBag, Coffee, Crown } from 'lucide-react';
 
 interface TableCardProps {
   table: Table;
@@ -34,11 +34,11 @@ const STATUS_CONFIG = {
 };
 
 const AREA_CONFIG = {
+  'داخلي': { label: 'داخلي', icon: Coffee, color: '#6366f1' },
+  'VIP': { label: 'VIP', icon: Crown, color: '#a855f7' },
+  // Legacy support
   indoor: { label: 'داخلي', icon: Coffee, color: '#6366f1' },
-  outdoor: { label: 'خارجي', icon: TreePine, color: '#16a34a' },
-  room: { label: 'غرفة', icon: Coffee, color: '#f59e0b' },
   vip: { label: 'VIP', icon: Crown, color: '#a855f7' },
-  terrace: { label: 'تراس', icon: Umbrella, color: '#06b6d4' },
 };
 
 export default function TableCard({ table, activeOrder, onClick }: TableCardProps) {
@@ -165,18 +165,6 @@ export default function TableCard({ table, activeOrder, onClick }: TableCardProp
         }}>
           {table.name || `طاولة ${table.tableNumber}`}
         </p>
-        
-        {/* Capacity */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          marginTop: '8px',
-          color: '#64748b',
-        }}>
-          <Users style={{ width: '14px', height: '14px' }} />
-          <span style={{ fontSize: '13px' }}>{table.capacity} أشخاص</span>
-        </div>
       </div>
 
       {/* Active Order Info */}
@@ -245,4 +233,6 @@ export default function TableCard({ table, activeOrder, onClick }: TableCardProp
     </div>
   );
 }
+
+
 

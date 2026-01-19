@@ -1842,6 +1842,17 @@
         if (!isAdmin && !isWorker) {
             window.location.href = 'login-admin.html';
         }
+        
+        // === نظام الصلاحيات الصارم ===
+        // العامل بصلاحيات منيو فقط لا يمكنه الوصول للغرف
+        if (isWorker && !isAdmin) {
+            const workerPermissions = localStorage.getItem('worker_permissions') || 'full';
+            if (workerPermissions === 'menu-only') {
+                console.warn('🚫 محاولة وصول غير مصرح بها للغرف - صلاحيات منيو فقط');
+                alert('⛔ ليس لديك صلاحية للوصول للغرف.\nسيتم توجيهك لصفحة المنيو.');
+                window.location.href = 'menu-staff.html';
+            }
+        }
     </script>
 </body>
 </html>

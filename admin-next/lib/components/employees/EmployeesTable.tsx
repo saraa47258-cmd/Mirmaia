@@ -1,6 +1,6 @@
 'use client';
 
-import { Employee, EmployeeRole, ROLE_CONFIG } from '@/lib/employees';
+import { Employee, EmployeeRole, ROLE_CONFIG, PERMISSION_LABELS } from '@/lib/employees';
 import { 
   User, 
   Edit, 
@@ -11,44 +11,31 @@ import {
   Calendar,
   Clock,
   MoreVertical,
-  Search
+  Search,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useState } from 'react';
 
 interface EmployeesTableProps {
   employees: Employee[];
   loading?: boolean;
-  searchTerm: string;
-  filterRole: EmployeeRole | 'all';
-  onSearch: (term: string) => void;
-  onFilterRole: (role: EmployeeRole | 'all') => void;
   onEdit: (employee: Employee) => void;
   onToggleStatus: (employee: Employee) => void;
   onResetPassword: (employee: Employee) => void;
-  onDelete: (employee: Employee) => void;
+  onDelete: (employeeId: string) => void;
 }
 
 export default function EmployeesTable({
   employees,
   loading,
-  searchTerm,
-  filterRole,
-  onSearch,
-  onFilterRole,
   onEdit,
   onToggleStatus,
   onResetPassword,
   onDelete,
 }: EmployeesTableProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-
-  const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = 
-      emp.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.username.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === 'all' || emp.role === filterRole;
-    return matchesSearch && matchesRole;
-  });
+  const [expandedPermissions, setExpandedPermissions] = useState<string | null>(null);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('ar-EG', {
@@ -117,71 +104,6 @@ export default function EmployeesTable({
       border: '1px solid #e2e8f0',
       overflow: 'hidden',
     }}>
-      {/* Filters */}
-      <div style={{
-        padding: '20px',
-        borderBottom: '1px solid #e2e8f0',
-        display: 'flex',
-        gap: '16px',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-      }}>
-        {/* Search */}
-        <div style={{ position: 'relative', flex: 1, maxWidth: '300px' }}>
-          <Search style={{
-            position: 'absolute',
-            right: '12px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            width: '18px',
-            height: '18px',
-            color: '#94a3b8',
-          }} />
-          <input
-            type="text"
-            placeholder="بحث بالاسم أو اسم المستخدم..."
-            value={searchTerm}
-            onChange={(e) => onSearch(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px 44px 12px 16px',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '10px',
-              fontSize: '14px',
-              outline: 'none',
-            }}
-          />
-        </div>
-
-        {/* Role Filter */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {[
-            { value: 'all' as const, label: 'الكل' },
-            { value: 'staff' as EmployeeRole, label: ROLE_CONFIG.staff.label },
-            { value: 'cashier' as EmployeeRole, label: ROLE_CONFIG.cashier.label },
-            { value: 'admin' as EmployeeRole, label: ROLE_CONFIG.admin.label },
-          ].map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => onFilterRole(value)}
-              style={{
-                padding: '10px 18px',
-                backgroundColor: filterRole === value ? '#6366f1' : '#f1f5f9',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: filterRole === value ? '#ffffff' : '#475569',
-                cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Table */}
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -261,7 +183,7 @@ export default function EmployeesTable({
             </tr>
           </thead>
           <tbody>
-            {filteredEmployees.length === 0 ? (
+            {employees.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ padding: '60px 20px', textAlign: 'center' }}>
                   <User style={{
@@ -271,12 +193,12 @@ export default function EmployeesTable({
                     margin: '0 auto 16px',
                   }} />
                   <p style={{ fontSize: '16px', color: '#64748b' }}>
-                    {searchTerm || filterRole !== 'all' ? 'لا توجد نتائج' : 'لا يوجد موظفين'}
+                    لا يوجد موظفين
                   </p>
                 </td>
               </tr>
             ) : (
-              filteredEmployees.map((employee) => {
+              employees.map((employee) => {
                 // Fallback for unknown roles
                 const roleConfig = ROLE_CONFIG[employee.role] || {
                   label: employee.role || 'غير محدد',
@@ -338,22 +260,75 @@ export default function EmployeesTable({
                       </code>
                     </td>
 
-                    {/* Role */}
+                    {/* Role & Permissions */}
                     <td style={{ padding: '16px' }}>
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        backgroundColor: roleConfig.bgColor,
-                        color: roleConfig.color,
-                        borderRadius: '20px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                      }}>
-                        <Shield style={{ width: '12px', height: '12px' }} />
-                        {roleConfig.label}
-                      </span>
+                      <div>
+                        <button
+                          onClick={() => setExpandedPermissions(
+                            expandedPermissions === employee.id ? null : employee.id
+                          )}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 12px',
+                            backgroundColor: roleConfig.bgColor,
+                            color: roleConfig.color,
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Shield style={{ width: '12px', height: '12px' }} />
+                          {roleConfig.label}
+                          {expandedPermissions === employee.id ? (
+                            <ChevronUp style={{ width: '12px', height: '12px' }} />
+                          ) : (
+                            <ChevronDown style={{ width: '12px', height: '12px' }} />
+                          )}
+                        </button>
+                        
+                        {/* Permissions List */}
+                        {expandedPermissions === employee.id && (
+                          <div style={{
+                            marginTop: '8px',
+                            padding: '8px',
+                            backgroundColor: '#f8fafc',
+                            borderRadius: '8px',
+                            fontSize: '11px',
+                          }}>
+                            <p style={{ 
+                              color: '#64748b', 
+                              marginBottom: '6px',
+                              fontWeight: 600,
+                            }}>
+                              الصلاحيات:
+                            </p>
+                            <div style={{ 
+                              display: 'flex', 
+                              flexWrap: 'wrap', 
+                              gap: '4px' 
+                            }}>
+                              {roleConfig.permissions.map((perm) => (
+                                <span
+                                  key={perm}
+                                  style={{
+                                    padding: '2px 6px',
+                                    backgroundColor: '#e2e8f0',
+                                    color: '#475569',
+                                    borderRadius: '4px',
+                                    fontSize: '10px',
+                                  }}
+                                >
+                                  {PERMISSION_LABELS[perm] || perm}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     {/* Status */}
@@ -511,7 +486,7 @@ export default function EmployeesTable({
                               </button>
                               <div style={{ height: '1px', backgroundColor: '#e2e8f0' }} />
                               <button
-                                onClick={() => { onDelete(employee); setOpenMenuId(null); }}
+                                onClick={() => { onDelete(employee.id); setOpenMenuId(null); }}
                                 style={{
                                   width: '100%',
                                   display: 'flex',
@@ -543,7 +518,7 @@ export default function EmployeesTable({
       </div>
 
       {/* Footer */}
-      {filteredEmployees.length > 0 && (
+      {employees.length > 0 && (
         <div style={{
           padding: '16px 20px',
           borderTop: '1px solid #e2e8f0',
@@ -552,7 +527,7 @@ export default function EmployeesTable({
           alignItems: 'center',
         }}>
           <p style={{ fontSize: '13px', color: '#64748b' }}>
-            عرض {filteredEmployees.length} من {employees.length} موظف
+            عرض {employees.length} موظف
           </p>
         </div>
       )}

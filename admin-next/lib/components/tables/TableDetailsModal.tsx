@@ -1,22 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Table, Order, setTableStatus } from '@/lib/firebase/database';
+import { Table, Order, setTableStatus, updateTable, getOrders } from '@/lib/firebase/database';
 import { 
   X, 
   Users, 
   Clock, 
   MapPin,
-  ShoppingBag,
-  CreditCard,
   CheckCircle,
   AlertCircle,
   ExternalLink,
   Printer,
   Unlock,
   Lock,
-  UserCircle
+  UserCircle,
+  Edit3,
+  Save,
+  CreditCard
 } from 'lucide-react';
 
 interface TableDetailsModalProps {
@@ -32,17 +33,17 @@ const STATUS_CONFIG = {
   occupied: { label: 'مشغولة', color: '#dc2626', bg: '#fee2e2' },
 };
 
-const AREA_LABELS = {
+const AREA_LABELS: Record<string, string> = {
+  'داخلي': 'داخلي',
+  'VIP': 'VIP',
+  // Legacy support
   indoor: 'داخلي',
-  outdoor: 'خارجي',
-  room: 'غرفة',
   vip: 'VIP',
-  terrace: 'تراس',
 };
 
 export default function TableDetailsModal({ 
   table, 
-  activeOrder, 
+  activeOrder: propActiveOrder, 
   onClose, 
   onStatusChange 
 }: TableDetailsModalProps) {
@@ -50,6 +51,43 @@ export default function TableDetailsModal({
   const [loading, setLoading] = useState(false);
   const [showReserveForm, setShowReserveForm] = useState(false);
   const [reservedBy, setReservedBy] = useState('');
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    tableNumber: table.tableNumber,
+    name: table.name || '',
+    area: table.area,
+  });
+  const [editError, setEditError] = useState('');
+  const [activeOrder, setActiveOrder] = useState<Order | null | undefined>(propActiveOrder);
+  const [loadingOrder, setLoadingOrder] = useState(false);
+
+  // Try to find active order if not provided but table is occupied
+  useEffect(() => {
+    const findActiveOrder = async () => {
+      if (!propActiveOrder && table.status === 'occupied') {
+        setLoadingOrder(true);
+        try {
+          const allOrders = await getOrders();
+          const tableOrder = allOrders.find(o => 
+            o.tableId === table.id && 
+            o.status !== 'completed' && 
+            o.status !== 'cancelled' &&
+            o.paymentStatus !== 'paid'
+          );
+          if (tableOrder) {
+            setActiveOrder(tableOrder);
+          }
+        } catch (error) {
+          console.error('Error finding order:', error);
+        } finally {
+          setLoadingOrder(false);
+        }
+      }
+    };
+    
+    findActiveOrder();
+  }, [table.id, table.status, propActiveOrder]);
+
 
   const statusConfig = STATUS_CONFIG[table.status] || STATUS_CONFIG.available;
   const isActive = table.status !== 'available';
@@ -101,6 +139,29 @@ export default function TableDetailsModal({
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleEditTable = async () => {
+    if (!editFormData.tableNumber.trim()) return;
+    
+    setLoading(true);
+    setEditError('');
+    
+    try {
+      await updateTable(table.id, {
+        tableNumber: editFormData.tableNumber.trim(),
+        name: editFormData.name.trim() || undefined,
+        area: editFormData.area,
+      });
+      setShowEditForm(false);
+      onStatusChange();
+      onClose();
+    } catch (error: any) {
+      console.error('Error updating table:', error);
+      setEditError(error.message || 'حدث خطأ في تحديث الطاولة');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatDate = (dateStr?: string) => {
@@ -204,60 +265,198 @@ export default function TableDetailsModal({
               </div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              width: '36px',
-              height: '36px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              color: '#64748b',
-            }}
-          >
-            <X style={{ width: '18px', height: '18px' }} />
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setShowEditForm(!showEditForm)}
+              style={{
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: showEditForm ? '#6366f1' : '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: showEditForm ? '#ffffff' : '#64748b',
+              }}
+            >
+              <Edit3 style={{ width: '16px', height: '16px' }} />
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: '#64748b',
+              }}
+            >
+              <X style={{ width: '18px', height: '18px' }} />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+          {/* Edit Form */}
+          {showEditForm && (
+            <div style={{
+              padding: '16px',
+              backgroundColor: '#f0f9ff',
+              borderRadius: '12px',
+              marginBottom: '20px',
+              border: '1px solid #bae6fd',
+            }}>
+              <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#0284c7', marginBottom: '16px' }}>
+                تعديل الطاولة
+              </h4>
+              
+              {editError && (
+                <div style={{
+                  padding: '10px 14px',
+                  backgroundColor: '#fee2e2',
+                  borderRadius: '8px',
+                  marginBottom: '12px',
+                  color: '#dc2626',
+                  fontSize: '13px',
+                }}>
+                  {editError}
+                </div>
+              )}
+              
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                    رقم الطاولة *
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.tableNumber}
+                    onChange={(e) => setEditFormData({ ...editFormData, tableNumber: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                    اسم الطاولة (اختياري)
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    placeholder="مثال: طاولة الشرفة"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                    المنطقة
+                  </label>
+                  <select
+                    value={editFormData.area}
+                    onChange={(e) => setEditFormData({ ...editFormData, area: e.target.value as 'داخلي' | 'VIP' })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      outline: 'none',
+                      backgroundColor: '#ffffff',
+                    }}
+                  >
+                    <option value="داخلي">داخلي</option>
+                    <option value="VIP">VIP</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                <button
+                  onClick={handleEditTable}
+                  disabled={loading || !editFormData.tableNumber.trim()}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '10px',
+                    backgroundColor: '#0284c7',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#ffffff',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    opacity: loading ? 0.7 : 1,
+                  }}
+                >
+                  <Save style={{ width: '16px', height: '16px' }} />
+                  {loading ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowEditForm(false);
+                    setEditFormData({
+                      tableNumber: table.tableNumber,
+                      name: table.name || '',
+                      area: table.area,
+                    });
+                    setEditError('');
+                  }}
+                  style={{
+                    padding: '10px 16px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#475569',
+                    cursor: 'pointer',
+                  }}
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Table Info */}
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '12px',
+            padding: '14px',
+            backgroundColor: '#f8fafc',
+            borderRadius: '12px',
             marginBottom: '20px',
           }}>
-            <div style={{
-              padding: '14px',
-              backgroundColor: '#f8fafc',
-              borderRadius: '12px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <Users style={{ width: '16px', height: '16px', color: '#64748b' }} />
-                <span style={{ fontSize: '12px', color: '#64748b' }}>السعة</span>
-              </div>
-              <p style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                {table.capacity} أشخاص
-              </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <MapPin style={{ width: '16px', height: '16px', color: '#64748b' }} />
+              <span style={{ fontSize: '12px', color: '#64748b' }}>المنطقة</span>
             </div>
-            <div style={{
-              padding: '14px',
-              backgroundColor: '#f8fafc',
-              borderRadius: '12px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <MapPin style={{ width: '16px', height: '16px', color: '#64748b' }} />
-                <span style={{ fontSize: '12px', color: '#64748b' }}>المنطقة</span>
-              </div>
-              <p style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                {AREA_LABELS[table.area as keyof typeof AREA_LABELS] || table.area}
-              </p>
-            </div>
+            <p style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              {AREA_LABELS[table.area] || table.area}
+            </p>
           </div>
 
           {/* Reserved By */}
@@ -284,6 +483,45 @@ export default function TableDetailsModal({
                   <span style={{ fontSize: '12px', color: '#dc2626' }}>{getTimeSinceOpened()}</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Loading Order Indicator */}
+          {loadingOrder && table.status === 'occupied' && (
+            <div style={{
+              padding: '20px',
+              textAlign: 'center',
+              color: '#64748b',
+            }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                border: '3px solid #e2e8f0',
+                borderTopColor: '#6366f1',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 8px',
+              }} />
+              <p style={{ fontSize: '13px', margin: 0 }}>جاري تحميل الطلب...</p>
+            </div>
+          )}
+
+          {/* No Order Found for Occupied Table */}
+          {!loadingOrder && !activeOrder && table.status === 'occupied' && (
+            <div style={{
+              padding: '16px',
+              backgroundColor: '#fef3c7',
+              borderRadius: '12px',
+              marginBottom: '20px',
+              textAlign: 'center',
+            }}>
+              <AlertCircle style={{ width: '24px', height: '24px', color: '#f59e0b', margin: '0 auto 8px' }} />
+              <p style={{ fontSize: '13px', color: '#92400e', margin: 0 }}>
+                لا يوجد طلب مرتبط بهذه الطاولة
+              </p>
+              <p style={{ fontSize: '12px', color: '#a16207', margin: '4px 0 0 0' }}>
+                يمكنك إنشاء طلب جديد من الكاشير
+              </p>
             </div>
           )}
 
@@ -376,11 +614,11 @@ export default function TableDetailsModal({
                         {item.name}
                       </p>
                       <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0' }}>
-                        {item.quantity} × {item.price.toFixed(3)} ر.ع
+                        {item.quantity} × {(item.price || 0).toFixed(3)} ر.ع
                       </p>
                     </div>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
-                      {(item.itemTotal || item.quantity * item.price).toFixed(3)} ر.ع
+                      {(item.itemTotal || item.quantity * (item.price || 0)).toFixed(3)} ر.ع
                     </span>
                   </div>
                 ))}
@@ -473,6 +711,33 @@ export default function TableDetailsModal({
           borderTop: '1px solid #e2e8f0',
           backgroundColor: '#f8fafc',
         }}>
+          {/* Pay Now Button - Show when there's an active unpaid order */}
+          {activeOrder && activeOrder.paymentStatus !== 'paid' && activeOrder.status !== 'completed' && (
+            <button
+              onClick={handleOpenInCashier}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                padding: '16px',
+                background: 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)',
+                border: 'none',
+                borderRadius: '14px',
+                fontSize: '16px',
+                fontWeight: 700,
+                color: '#ffffff',
+                cursor: 'pointer',
+                marginBottom: '12px',
+                boxShadow: '0 4px 12px rgba(22, 163, 74, 0.3)',
+              }}
+            >
+              <CreditCard style={{ width: '22px', height: '22px' }} />
+              الدفع الآن - {activeOrder.total?.toFixed(3) || '0.000'} ر.ع
+            </button>
+          )}
+
           {/* Primary Actions */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
             {isActive ? (
@@ -599,4 +864,6 @@ export default function TableDetailsModal({
     </>
   );
 }
+
+
 

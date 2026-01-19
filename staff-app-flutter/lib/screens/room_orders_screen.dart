@@ -73,28 +73,26 @@ class _RoomOrdersScreenState extends State<RoomOrdersScreen> {
 }
 
 class _OrderCard extends StatelessWidget {
+  const _OrderCard({required this.order});
+  
   final OrderModel order;
 
-  const _OrderCard({required this.order});
-
-  Color _getStatusColor(String status) {
+  Color _getStatusColor(OrderStatus status) {
     switch (status) {
-      case 'pending':
+      case OrderStatus.pending:
         return Colors.orange;
-      case 'processing':
-      case 'preparing':
+      case OrderStatus.preparing:
         return Colors.blue;
-      case 'ready':
+      case OrderStatus.ready:
         return AppTheme.successColor;
-      case 'completed':
-      case 'paid':
+      case OrderStatus.completed:
         return Colors.green;
-      case 'cancelled':
+      case OrderStatus.cancelled:
         return AppTheme.errorColor;
-      default:
-        return Colors.grey;
     }
   }
+
+  int get itemsCount => order.items.fold(0, (sum, item) => sum + item.quantity);
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +140,7 @@ class _OrderCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            'غرفة ${order.roomNumber ?? '?'}',
+                            'غرفة ${order.roomName ?? order.roomId ?? '?'}',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -151,7 +149,7 @@ class _OrderCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '#${order.id.substring(order.id.length - 6).toUpperCase()}',
+                            '#${order.orderNumber}',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -162,7 +160,7 @@ class _OrderCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${timeFormat.format(order.createdAt)} • ${order.itemsCount} صنف',
+                        '${timeFormat.format(order.createdAt)} • $itemsCount صنف',
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey[600],
@@ -180,7 +178,7 @@ class _OrderCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    order.statusLabel,
+                    order.status.displayName,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -201,14 +199,14 @@ class _OrderCard extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     children: [
-                      Text(
-                        item.emoji ?? '•',
-                        style: const TextStyle(fontSize: 16),
+                      const Text(
+                        '•',
+                        style: TextStyle(fontSize: 16),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          item.displayName,
+                          item.productName + (item.variantName != null ? ' - ${item.variantName}' : ''),
                           style: const TextStyle(
                             fontSize: 14,
                             color: AppTheme.lightText,
@@ -224,7 +222,7 @@ class _OrderCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        '${item.total.toStringAsFixed(3)} ر.ع',
+                        '${item.totalPrice.toStringAsFixed(2)} ر.س',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -257,7 +255,7 @@ class _OrderCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${order.total.toStringAsFixed(3)} ر.ع',
+                      '${order.grandTotal.toStringAsFixed(2)} ر.س',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -274,4 +272,3 @@ class _OrderCard extends StatelessWidget {
     );
   }
 }
-

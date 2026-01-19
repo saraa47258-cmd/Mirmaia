@@ -50,6 +50,8 @@ export interface POSOrder {
   tableNumber?: string;
   roomId?: string;
   roomNumber?: string;
+  roomGender?: 'male' | 'female';
+  roomPrice?: number;
   customerName?: string;
   customerPhone?: string;
 }
@@ -114,38 +116,50 @@ export const createPOSOrder = async (
   const newOrderRef = push(ref(database, getPath('orders')));
   const orderId = newOrderRef.key!;
   
-  const orderItems: OrderItem[] = order.items.map(item => ({
-    id: item.productId,
-    name: item.name,
-    price: item.unitPrice,
-    quantity: item.quantity,
-    itemTotal: item.lineTotal,
-    emoji: item.emoji,
-    note: item.note,
-  }));
+  // Clean items - remove undefined values (Firebase doesn't accept undefined)
+  const orderItems: OrderItem[] = order.items.map(item => {
+    const cleanItem: OrderItem = {
+      id: item.productId,
+      name: item.name,
+      price: item.unitPrice,
+      quantity: item.quantity,
+      itemTotal: item.lineTotal,
+    };
+    if (item.emoji) cleanItem.emoji = item.emoji;
+    if (item.note) cleanItem.note = item.note;
+    return cleanItem;
+  });
 
-  const orderData: Order = {
+  // Build order data - only include defined values
+  const orderData: any = {
     id: orderId,
     items: orderItems,
-    subtotal: order.subtotal,
-    discount: order.discount,
-    total: order.total,
+    subtotal: order.subtotal || 0,
+    discount: {
+      percent: order.discount?.percent || 0,
+      amount: order.discount?.amount || 0,
+    },
+    total: order.total || 0,
     status: 'pending',
     paymentStatus: 'pending',
     orderType: order.orderType,
-    tableId: order.tableId,
-    tableNumber: order.tableNumber,
-    roomId: order.roomId,
-    roomNumber: order.roomNumber,
-    customerName: order.customerName,
     workerId: userId,
-    workerName: userName,
     source: 'cashier',
     restaurantId: RESTAURANT_ID,
     createdAt: new Date().toISOString(),
     timestamp: Date.now(),
     itemsCount: orderItems.reduce((sum, item) => sum + item.quantity, 0),
   };
+
+  // Add optional fields only if they have values
+  if (order.tableId) orderData.tableId = order.tableId;
+  if (order.tableNumber) orderData.tableNumber = order.tableNumber;
+  if (order.roomId) orderData.roomId = order.roomId;
+  if (order.roomNumber) orderData.roomNumber = order.roomNumber;
+  if (order.roomGender) orderData.roomGender = order.roomGender;
+  if (order.roomPrice) orderData.roomPrice = order.roomPrice;
+  if (order.customerName) orderData.customerName = order.customerName;
+  if (userName) orderData.workerName = userName;
 
   await set(newOrderRef, orderData);
 
@@ -174,38 +188,46 @@ export const payAndCloseOrder = async (
   
   const order = orderSnapshot.val() as Order;
   
-  // Create invoice
+  // Create invoice - clean data to prevent undefined values
   const invoiceRef = push(ref(database, getPath('invoices')));
   const invoiceId = invoiceRef.key!;
   
-  const invoice: Invoice = {
-    id: invoiceId,
-    orderId: orderId,
-    orderNumber: orderId.slice(-6).toUpperCase(),
-    items: order.items.map(item => ({
+  // Clean invoice items
+  const invoiceItems = order.items.map(item => {
+    const cleanItem: any = {
       id: item.id,
       productId: item.id,
       name: item.name,
-      unitPrice: item.price,
+      unitPrice: item.price || 0,
       quantity: item.quantity,
-      lineTotal: item.itemTotal || item.price * item.quantity,
-      emoji: item.emoji,
-      note: item.note,
-    })),
-    subtotal: order.subtotal || order.total,
+      lineTotal: item.itemTotal || (item.price || 0) * item.quantity,
+    };
+    if (item.emoji) cleanItem.emoji = item.emoji;
+    if (item.note) cleanItem.note = item.note;
+    return cleanItem;
+  });
+
+  const invoiceData: any = {
+    id: invoiceId,
+    orderId: orderId,
+    orderNumber: orderId.slice(-6).toUpperCase(),
+    items: invoiceItems,
+    subtotal: order.subtotal || order.total || 0,
     discount: order.discount?.amount || 0,
     tax: 0,
-    total: order.total,
+    total: order.total || 0,
     paymentMethod: payment.method,
-    receivedAmount: payment.receivedAmount,
-    change: payment.change,
+    receivedAmount: payment.receivedAmount || order.total || 0,
+    change: payment.change || 0,
     cashierId: userId,
-    cashierName: userName,
     createdAt: new Date().toISOString(),
     restaurantId: RESTAURANT_ID,
   };
   
-  await set(invoiceRef, invoice);
+  // Add optional fields only if defined
+  if (userName) invoiceData.cashierName = userName;
+  
+  await set(invoiceRef, invoiceData);
   
   // Update order
   await update(ref(database, `${getPath('orders')}/${orderId}`), {
@@ -227,7 +249,7 @@ export const payAndCloseOrder = async (
   return invoiceId;
 };
 
-// Get today's pending orders
+// Get today's pending orders (from all sources: cashier, staff-menu, etc.)
 export const getTodayPendingOrders = async (): Promise<Order[]> => {
   const snapshot = await get(ref(database, getPath('orders')));
   const data = snapshot.val() || {};
@@ -243,7 +265,7 @@ export const getTodayPendingOrders = async (): Promise<Order[]> => {
       return orderTime >= todayStart && 
         order.status !== 'completed' && 
         order.status !== 'cancelled' &&
-        order.source === 'cashier';
+        order.paymentStatus !== 'paid';
     })
     .sort((a, b) => {
       const timeA = a.timestamp || new Date(a.createdAt).getTime();
@@ -352,4 +374,8 @@ export const generateOrderNumber = (): string => {
   const timePart = now.getTime().toString().slice(-4);
   return `${datePart}-${timePart}`;
 };
+
+
+
+
 

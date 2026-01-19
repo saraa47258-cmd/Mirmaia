@@ -1,12 +1,18 @@
 {
   "hosting": {
-    "public": ".",
+    "public": "admin-next/build",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
       "template.json",
       "README.md"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ],
     "headers": [
       {
@@ -15,6 +21,15 @@
           {
             "key": "Cache-Control",
             "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/_next/static/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
           }
         ]
       }

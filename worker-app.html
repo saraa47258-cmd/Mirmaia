@@ -789,6 +789,20 @@
             <div class="stats-row" id="roomsStats"></div>
             <div class="rooms-grid" id="roomsGrid"></div>
         </section>
+
+        <!-- Reports Section -->
+        <section id="section-reports" class="section">
+            <div class="section-header">
+                <h2 class="section-title">📊 التقارير اليومية</h2>
+                <button class="section-filter" onclick="loadDailyReports()" style="cursor:pointer">🔄 تحديث</button>
+            </div>
+            <div id="reportsContainer">
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <div class="empty-title">جاري تحميل التقارير...</div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <!-- Bottom Navigation -->
@@ -809,6 +823,10 @@
         <button class="nav-item" onclick="switchSection('rooms', this)">
             <span class="nav-icon">🚪</span>
             <span>الغرف</span>
+        </button>
+        <button class="nav-item" onclick="switchSection('reports', this)">
+            <span class="nav-icon">📊</span>
+            <span>التقارير</span>
         </button>
     </nav>
 
@@ -865,19 +883,21 @@
         const db = firebase.database();
         
         // Constants
-        const RID = 'sham-coffee-1';
+        const RID = localStorage.getItem('restaurant_id') || 'sham-coffee-1';
         const PATHS = {
             menu: `restaurant-system/restaurants/${RID}/menu`,
             categories: `restaurant-system/restaurants/${RID}/categories`,
             orders: `restaurant-system/restaurants/${RID}/orders`,
             tables: `restaurant-system/restaurants/${RID}/tables`,
             rooms: `restaurant-system/restaurants/${RID}/rooms`,
-            shishaTypes: `restaurant-system/restaurants/${RID}/shisha-types`
+            shishaTypes: `restaurant-system/restaurants/${RID}/shisha-types`,
+            dailyClosings: `restaurant-system/restaurants/${RID}/daily-closings`
         };
         
         // State
         let products = [], categories = [], orders = [], tables = [], rooms = [];
         let shishaTypes = {};
+        let dailyReports = [];
         let cart = JSON.parse(localStorage.getItem('worker_cart') || '[]');
         let currentProduct = null, modalQty = 1, selectedOption = null;
         let currentCat = 'all', locationType = 'table';
@@ -887,16 +907,63 @@
             window.location.href = 'login-worker.html';
         }
         
+        // === نظام الصلاحيات الصارم ===
+        const workerPermissions = localStorage.getItem('worker_permissions') || 'full';
+        const isAdmin = localStorage.getItem('admin_logged_in') === 'true';
+        const isMenuOnly = (workerPermissions === 'menu-only') && !isAdmin;
+        
         // Display worker name
         const workerName = localStorage.getItem('worker_name') || localStorage.getItem('admin_name') || 'موظف';
         document.getElementById('workerName').textContent = workerName;
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            // تطبيق الصلاحيات الصارمة
+            applyStrictPermissions();
             initFirebaseListeners();
             updateCartUI();
             checkInstallPrompt();
+            
+            // تحميل الموقع المحفوظ
+            const savedLocation = localStorage.getItem('worker_location');
+            const savedLocType = localStorage.getItem('worker_loc_type');
+            if (savedLocation) {
+                document.getElementById('locationNum').value = savedLocation;
+            }
+            if (savedLocType) {
+                setLocType(savedLocType);
+            }
         });
+        
+        // تطبيق الصلاحيات الصارمة - إخفاء الأقسام الممنوعة
+        function applyStrictPermissions() {
+            if (isMenuOnly) {
+                console.log('🔒 صلاحيات منيو فقط - إخفاء الأقسام الأخرى');
+                
+                // إخفاء أزرار التنقل للأقسام الممنوعة
+                const navItems = document.querySelectorAll('.bottom-nav .nav-item');
+                navItems.forEach(item => {
+                    const onclick = item.getAttribute('onclick') || '';
+                    // إخفاء الطلبات والطاولات والغرف
+                    if (onclick.includes('orders') || onclick.includes('tables') || onclick.includes('rooms')) {
+                        item.style.display = 'none';
+                    }
+                });
+                
+                // إخفاء أقسام المحتوى الممنوعة
+                const restrictedSections = ['section-orders', 'section-tables', 'section-rooms'];
+                restrictedSections.forEach(id => {
+                    const section = document.getElementById(id);
+                    if (section) section.remove();
+                });
+                
+                // إضافة شارة صلاحيات
+                const workerNameEl = document.getElementById('workerName');
+                if (workerNameEl) {
+                    workerNameEl.innerHTML += ' <span style="background:#ef4444;font-size:10px;padding:2px 6px;border-radius:8px;">منيو فقط</span>';
+                }
+            }
+        }
         
         // Firebase Listeners
         function initFirebaseListeners() {
@@ -960,6 +1027,75 @@
                 }
                 renderRooms();
             });
+            
+            // Daily Reports
+            loadDailyReports();
+        }
+        
+        // Load Daily Reports
+        function loadDailyReports() {
+            db.ref(PATHS.dailyClosings).orderByChild('timestamp').limitToLast(30).once('value', snap => {
+                dailyReports = [];
+                if (snap.exists()) {
+                    snap.forEach(child => {
+                        dailyReports.push({ id: child.key, ...child.val() });
+                    });
+                }
+                dailyReports.reverse(); // الأحدث أولاً
+                renderReports();
+            });
+        }
+        
+        // Render Reports
+        function renderReports() {
+            const container = document.getElementById('reportsContainer');
+            if (!container) return;
+            
+            if (dailyReports.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <div class="empty-title">لا توجد تقارير يومية</div>
+                        <div style="color:var(--muted);font-size:0.85rem;margin-top:8px">سيتم عرض التقارير بعد إغلاق اليومية</div>
+                    </div>`;
+                return;
+            }
+            
+            let html = '';
+            dailyReports.forEach(report => {
+                const date = report.date || (report.closedAt ? new Date(report.closedAt).toLocaleDateString('ar-EG') : 'غير محدد');
+                const time = report.closedAt ? new Date(report.closedAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '';
+                const closedBy = report.closedBy || 'غير محدد';
+                
+                html += `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <span class="order-id">
+                                <span>📅 ${date}</span>
+                            </span>
+                            <span class="order-status completed">مغلق</span>
+                        </div>
+                        <div class="order-items" style="line-height:1.8">
+                            <div>👤 من: ${closedBy}</div>
+                            <div>⏰ الوقت: ${time}</div>
+                            <div>📋 عدد الطلبات: ${report.ordersCount || 0}</div>
+                            <div>💰 إجمالي المبيعات: ${(report.totalSales || 0).toFixed(3)} ر.ع</div>
+                            <div style="display:flex;gap:12px;margin-top:8px">
+                                <span style="color:var(--success)">💵 نقد: ${(report.cashTotal || 0).toFixed(3)}</span>
+                                <span style="color:var(--primary)">💳 بطاقة: ${(report.cardTotal || 0).toFixed(3)}</span>
+                            </div>
+                            ${report.pendingCount > 0 ? `<div style="color:var(--warning);margin-top:4px">⏳ معلق: ${report.pendingCount} طلب (${(report.pendingTotal || 0).toFixed(3)} ر.ع)</div>` : ''}
+                        </div>
+                        <div class="order-footer">
+                            <div>
+                                <span class="order-total">${(report.totalSales || 0).toFixed(3)} ر.ع</span>
+                                <span class="order-time">${time}</span>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+            
+            container.innerHTML = html;
         }
         
         // Apply shisha types to products
@@ -1048,6 +1184,21 @@
             
             modalQty = 1;
             selectedOption = null;
+            
+            // التحقق من أنواع الشيشة - استخدام الأنواع المركزية إذا لم تكن موجودة في المنتج
+            const shishaCat = categories.find(c => c.id === 'shisha' || (c.name && c.name.includes('شيشة')));
+            const shishaCatId = shishaCat ? shishaCat.id : 'shisha';
+            const isShishaProduct = currentProduct.category === shishaCatId || 
+                                   currentProduct.category === 'shisha' || 
+                                   currentProduct.isShisha;
+            
+            // إذا كان منتج شيشة ولا يحتوي على أنواع، استخدم الأنواع المركزية
+            if (isShishaProduct && (!currentProduct.shishaTypes || Object.keys(currentProduct.shishaTypes).length === 0)) {
+                if (Object.keys(shishaTypes).length > 0) {
+                    currentProduct.shishaTypes = shishaTypes;
+                    currentProduct.isShisha = true;
+                }
+            }
             
             const hasSizes = currentProduct.sizes && Object.keys(currentProduct.sizes).length;
             const hasShisha = currentProduct.shishaTypes && Object.keys(currentProduct.shishaTypes).length;
@@ -1276,9 +1427,11 @@
                 roomNumber: locationType === 'room' ? locDisplay : null,
                 status: 'pending',
                 paymentStatus: 'pending',
+                paymentMethod: 'later', // للعمال - سيتم الدفع لاحقاً
                 source: 'worker-app',
-                createdBy: localStorage.getItem('worker_username') || 'worker',
+                createdBy: localStorage.getItem('worker_username') || localStorage.getItem('worker_id') || 'worker',
                 workerName: workerName,
+                workerId: localStorage.getItem('worker_id') || localStorage.getItem('worker_username') || '',
                 createdAt: new Date().toISOString(),
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 restaurantId: RID
@@ -1521,19 +1674,43 @@
             }
         }
         
-        // Section Switching
+        // Section Switching - مع التحقق من الصلاحيات
         function switchSection(section, el) {
+            // === التحقق الصارم من الصلاحيات ===
+            if (isMenuOnly) {
+                const restrictedSections = ['orders', 'tables', 'rooms', 'reports'];
+                if (restrictedSections.includes(section)) {
+                    toast('⛔ ليس لديك صلاحية للوصول لهذا القسم', 'error');
+                    console.warn('🚫 محاولة وصول غير مصرح بها:', section);
+                    return; // منع الوصول
+                }
+            }
+            
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             
-            document.getElementById(`section-${section}`).classList.add('active');
+            const targetSection = document.getElementById(`section-${section}`);
+            if (!targetSection) {
+                console.error('Section not found:', section);
+                return;
+            }
+            
+            targetSection.classList.add('active');
             el.classList.add('active');
+            
+            // تحميل التقارير عند فتح قسم التقارير
+            if (section === 'reports') {
+                loadDailyReports();
+            }
         }
         
         // Utils
         function refreshData() {
-            toast('جاري التحديث...');
+            toast('جاري التحديث...', 'success');
+            // إعادة تحميل البيانات
             initFirebaseListeners();
+            loadDailyReports();
+            updateCartUI();
         }
         
         function logout() {
@@ -1542,6 +1719,9 @@
             localStorage.removeItem('worker_name');
             localStorage.removeItem('worker_username');
             localStorage.removeItem('worker_cart');
+            localStorage.removeItem('worker_permissions');
+            localStorage.removeItem('worker_id');
+            localStorage.removeItem('worker_position');
             window.location.href = 'login-worker.html';
         }
         

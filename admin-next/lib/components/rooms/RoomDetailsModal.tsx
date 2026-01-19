@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Room, Order, setRoomStatus, closeRoomOrder } from '@/lib/firebase/database';
+import { Room, Order, setRoomStatus, closeRoomOrder, getOrders } from '@/lib/firebase/database';
 import { 
   X, 
-  Users, 
   Clock, 
   DoorOpen,
   ShoppingBag,
@@ -35,7 +34,7 @@ const STATUS_CONFIG = {
 
 export default function RoomDetailsModal({ 
   room, 
-  activeOrder, 
+  activeOrder: propActiveOrder, 
   onClose, 
   onStatusChange 
 }: RoomDetailsModalProps) {
@@ -43,6 +42,35 @@ export default function RoomDetailsModal({
   const [loading, setLoading] = useState(false);
   const [showReserveForm, setShowReserveForm] = useState(false);
   const [reservedBy, setReservedBy] = useState('');
+  const [activeOrder, setActiveOrder] = useState<Order | null | undefined>(propActiveOrder);
+  const [loadingOrder, setLoadingOrder] = useState(false);
+
+  // Try to find active order if not provided but room is occupied
+  useEffect(() => {
+    const findActiveOrder = async () => {
+      if (!propActiveOrder && room.status === 'occupied') {
+        setLoadingOrder(true);
+        try {
+          const allOrders = await getOrders();
+          const roomOrder = allOrders.find(o => 
+            o.roomId === room.id && 
+            o.status !== 'completed' && 
+            o.status !== 'cancelled' &&
+            o.paymentStatus !== 'paid'
+          );
+          if (roomOrder) {
+            setActiveOrder(roomOrder);
+          }
+        } catch (error) {
+          console.error('Error finding order:', error);
+        } finally {
+          setLoadingOrder(false);
+        }
+      }
+    };
+    
+    findActiveOrder();
+  }, [room.id, room.status, propActiveOrder]);
 
   const statusConfig = STATUS_CONFIG[room.status] || STATUS_CONFIG.available;
   const isActive = room.status !== 'available';
@@ -234,28 +262,30 @@ export default function RoomDetailsModal({
               borderRadius: '12px',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <Users style={{ width: '16px', height: '16px', color: '#64748b' }} />
-                <span style={{ fontSize: '12px', color: '#64748b' }}>السعة</span>
+                <CreditCard style={{ width: '16px', height: '16px', color: '#64748b' }} />
+                <span style={{ fontSize: '12px', color: '#64748b' }}>التسعير</span>
               </div>
-              <p style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                {room.capacity} أشخاص
-              </p>
-            </div>
-            {room.hourlyRate && room.hourlyRate > 0 && (
-              <div style={{
-                padding: '14px',
-                backgroundColor: '#f8fafc',
-                borderRadius: '12px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  <CreditCard style={{ width: '16px', height: '16px', color: '#64748b' }} />
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>سعر الساعة</span>
-                </div>
-                <p style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                  {room.hourlyRate.toFixed(3)} ر.ع
+              {room.priceType === 'free' ? (
+                <p style={{ fontSize: '16px', fontWeight: 700, color: '#22c55e', margin: 0 }}>
+                  مجاني
                 </p>
-              </div>
-            )}
+              ) : room.priceType === 'gender' ? (
+                <div>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#3b82f6', margin: '0 0 4px 0' }}>
+                    🚹 ذكور: {room.malePrice || 3} ر.ع
+                  </p>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#ec4899', margin: 0 }}>
+                    🚺 إناث: {room.femalePrice === 0 ? 'مجاني' : `${room.femalePrice} ر.ع`}
+                  </p>
+                </div>
+              ) : room.hourlyRate && room.hourlyRate > 0 ? (
+                <p style={{ fontSize: '16px', fontWeight: 700, color: '#f59e0b', margin: 0 }}>
+                  {room.hourlyRate.toFixed(3)} ر.ع/ساعة
+                </p>
+              ) : (
+                <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>غير محدد</p>
+              )}
+            </div>
           </div>
 
           {/* Notes */}
@@ -307,6 +337,43 @@ export default function RoomDetailsModal({
               <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '12px' }}>
                 الطلب الحالي
               </h3>
+              
+              {/* عرض جنس الحاجز */}
+              {(activeOrder as any).roomGender && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  padding: '12px',
+                  marginBottom: '12px',
+                  borderRadius: '12px',
+                  backgroundColor: (activeOrder as any).roomGender === 'male' ? '#dbeafe' : '#fce7f3',
+                  border: (activeOrder as any).roomGender === 'male' ? '2px solid #3b82f6' : '2px solid #ec4899',
+                }}>
+                  <span style={{ fontSize: '28px' }}>
+                    {(activeOrder as any).roomGender === 'male' ? '👦' : '👧'}
+                  </span>
+                  <div>
+                    <span style={{
+                      fontSize: '16px',
+                      fontWeight: 700,
+                      color: (activeOrder as any).roomGender === 'male' ? '#1d4ed8' : '#be185d',
+                    }}>
+                      {(activeOrder as any).roomGender === 'male' ? 'ولد' : 'بنت'}
+                    </span>
+                    <p style={{
+                      fontSize: '12px',
+                      color: (activeOrder as any).roomGender === 'male' ? '#3b82f6' : '#ec4899',
+                      margin: '2px 0 0 0',
+                    }}>
+                      {(activeOrder as any).roomGender === 'male' 
+                        ? `سعر الغرفة: ${((activeOrder as any).roomPrice || 0).toFixed(3)} ر.ع`
+                        : 'الغرفة مجانية ✨'}
+                    </p>
+                  </div>
+                </div>
+              )}
               
               <div style={{
                 display: 'flex',
@@ -388,11 +455,11 @@ export default function RoomDetailsModal({
                         {item.name}
                       </p>
                       <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0' }}>
-                        {item.quantity} × {item.price.toFixed(3)} ر.ع
+                        {item.quantity} × {(item.price || 0).toFixed(3)} ر.ع
                       </p>
                     </div>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
-                      {(item.itemTotal || item.quantity * item.price).toFixed(3)} ر.ع
+                      {(item.itemTotal || item.quantity * (item.price || 0)).toFixed(3)} ر.ع
                     </span>
                   </div>
                 ))}
@@ -620,4 +687,6 @@ export default function RoomDetailsModal({
     </>
   );
 }
+
+
 

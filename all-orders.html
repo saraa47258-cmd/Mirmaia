@@ -650,6 +650,8 @@
         const RESTAURANT_ID = 'sham-coffee-1';
         const ORDERS_PATH = `restaurant-system/restaurants/${RESTAURANT_ID}/orders`;
         const CANCELLED_ORDERS_PATH = `restaurant-system/restaurants/${RESTAURANT_ID}/cancelled-orders`;
+        const DAILY_REPORTS_PATH = `restaurant-system/restaurants/${RESTAURANT_ID}/daily-reports`;
+        const CANCELLED_CLOSINGS_PATH = `restaurant-system/restaurants/${RESTAURANT_ID}/cancelled-closings`;
         
         let allOrders = [];
         let currentPeriod = 'today';
@@ -685,38 +687,120 @@
             console.log('🔄 جاري تحميل الطلبات من:', ORDERS_PATH);
             const ordersRef = firebase.database().ref(ORDERS_PATH);
             const cancelledOrdersRef = firebase.database().ref(CANCELLED_ORDERS_PATH);
+            const dailyReportsRef = firebase.database().ref(DAILY_REPORTS_PATH);
+            const cancelledClosingsRef = firebase.database().ref(CANCELLED_CLOSINGS_PATH);
 
-            // دالة لتحميل الطلبات
+            // دالة لتحميل الطلبات من جميع المصادر
             function loadAllOrders() {
-                // تحميل الطلبات النشطة
+                console.log('📥 تحميل من 4 مصادر...');
+                
                 Promise.all([
                     ordersRef.once('value'),
-                    cancelledOrdersRef.once('value')
+                    cancelledOrdersRef.once('value'),
+                    dailyReportsRef.once('value'),
+                    cancelledClosingsRef.once('value')
                 ])
-                .then(([snapshot, cancelledSnapshot]) => {
+                .then(([snapshot, cancelledSnapshot, reportsSnapshot, cancelledClosingsSnapshot]) => {
+                    // 1. الطلبات النشطة الحالية
                     const data = snapshot.val();
-                    console.log('📦 البيانات من Firebase:', data);
-                    const activeOrders = data ? Object.entries(data).map(([key, value]) => ({ id: key, ...value })) : [];
-                    console.log('✅ عدد الطلبات النشطة:', activeOrders.length);
+                    console.log('📦 الطلبات النشطة من orders/:', data ? Object.keys(data).length : 0);
+                    const activeOrders = data ? Object.entries(data).map(([key, value]) => ({ 
+                        id: key, 
+                        ...value,
+                        source: 'current'
+                    })) : [];
                     
+                    // 2. الطلبات الملغاة
                     const cancelledData = cancelledSnapshot.val();
-                    const cancelledOrders = cancelledData ? Object.entries(cancelledData).map(([key, value]) => ({ id: key, ...value, status: 'cancelled' })) : [];
+                    console.log('🗑️ الطلبات الملغاة من cancelled-orders/:', cancelledData ? Object.keys(cancelledData).length : 0);
+                    const cancelledOrders = cancelledData ? Object.entries(cancelledData).map(([key, value]) => ({ 
+                        id: key, 
+                        ...value, 
+                        status: 'cancelled',
+                        source: 'cancelled'
+                    })) : [];
                     
-                    allOrders = [...activeOrders, ...cancelledOrders];
-                    console.log('📊 إجمالي الطلبات:', allOrders.length);
+                    // 3. التقارير اليومية من worker-app
+                    console.log('📊 جاري تحميل التقارير اليومية...');
+                    let archiveOrders = [];
+                    const reportsData = reportsSnapshot.val();
+                    if (reportsData) {
+                        Object.entries(reportsData).forEach(([reportKey, report]) => {
+                            console.log('📄 التقرير:', reportKey);
+                            if (report.orders && Array.isArray(report.orders)) {
+                                report.orders.forEach(order => {
+                                    // تحقق من عدم التكرار
+                                    if (!activeOrders.find(o => o.id === order.id) && 
+                                        !cancelledOrders.find(o => o.id === order.id) &&
+                                        !archiveOrders.find(o => o.id === order.id)) {
+                                        archiveOrders.push({
+                                            ...order,
+                                            source: 'daily-report',
+                                            archiveDate: report.date
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    console.log('✅ عدد الطلبات من التقارير:', archiveOrders.length);
+                    
+                    // 4. الإغلاقات الملغاة (نسخة احتياطية)
+                    console.log('📊 جاري تحميل الإغلاقات الملغاة...');
+                    const closingsData = cancelledClosingsSnapshot.val();
+                    if (closingsData) {
+                        Object.entries(closingsData).forEach(([closingKey, closing]) => {
+                            console.log('📋 الإغلاق الملغي:', closingKey);
+                            if (closing.orders && Array.isArray(closing.orders)) {
+                                closing.orders.forEach(order => {
+                                    if (!activeOrders.find(o => o.id === order.id) && 
+                                        !cancelledOrders.find(o => o.id === order.id) &&
+                                        !archiveOrders.find(o => o.id === order.id)) {
+                                        archiveOrders.push({
+                                            ...order,
+                                            source: 'cancelled-closing',
+                                            archiveDate: closing.date
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    console.log('✅ إجمالي طلبات الأرشيف:', archiveOrders.length);
+                    
+                    // دمج جميع الطلبات
+                    allOrders = [...activeOrders, ...cancelledOrders, ...archiveOrders];
+                    console.log('🎯 إجمالي جميع الطلبات:', allOrders.length);
+                    
+                    if (allOrders.length === 0) {
+                        console.warn('⚠️ لا توجد طلبات على الإطلاق!');
+                    } else {
+                        console.log('✨ تفاصيل الطلبات:');
+                        console.table(allOrders.slice(0, 10).map(o => ({
+                            id: o.id,
+                            date: o.createdAt || o.archiveDate,
+                            total: o.total,
+                            status: o.status,
+                            source: o.source
+                        })));
+                    }
+                    
                     filterAndRenderOrders();
                 })
                 .catch((error) => {
-                    console.error('Error loading orders:', error);
-                    // في حالة الخطأ، حاول تحميل الطلبات النشطة فقط
+                    console.error('❌ خطأ في تحميل البيانات:', error);
+                    // fallback: حاول تحميل الطلبات النشطة فقط
                     ordersRef.once('value')
                         .then((snapshot) => {
                             const data = snapshot.val();
-                            allOrders = data ? Object.entries(data).map(([key, value]) => ({ id: key, ...value })) : [];
+                            allOrders = data ? Object.entries(data).map(([key, value]) => ({ 
+                                id: key, 
+                                ...value,
+                                source: 'current'
+                            })) : [];
                             filterAndRenderOrders();
                         })
                         .catch(() => {
-                            // في حالة فشل التحميل تماماً، عرض رسالة فارغة
                             allOrders = [];
                             filterAndRenderOrders();
                         });
@@ -735,7 +819,7 @@
                             <tr>
                                 <td colspan="9" class="empty-state">
                                     <i class="fas fa-exclamation-triangle"></i>
-                                    <p>تعذر تحميل الطلبات. يرجى تحديث الصفحة.</p>
+                                    <p>لا توجد طلبات أو تعذر تحميلها</p>
                                     <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px;">
                                         <i class="fas fa-sync-alt"></i> تحديث
                                     </button>

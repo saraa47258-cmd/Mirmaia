@@ -1,526 +1,400 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/context/AuthContext';
-import {
-  Employee,
-  EmployeeRole,
-  ROLE_CONFIG,
-  getEmployees,
-  createEmployee,
-  updateEmployee,
+import { 
+  getEmployees, 
+  createEmployee, 
+  updateEmployee, 
+  deleteEmployee, 
   toggleEmployeeStatus,
   resetEmployeePassword,
-  deleteEmployee,
-  CreateEmployeeData,
+  Employee, 
+  EmployeeRole, 
+  ROLE_CONFIG,
+  CreateEmployeeData
 } from '@/lib/employees';
-import EmployeesTable from '@/lib/components/employees/EmployeesTable';
+import { useAuth } from '@/lib/context/AuthContext';
 import EmployeeModal from '@/lib/components/employees/EmployeeModal';
+import EmployeesTable from '@/lib/components/employees/EmployeesTable';
 import ResetPasswordModal from '@/lib/components/employees/ResetPasswordModal';
-import {
+import Topbar from '@/lib/components/Topbar';
+import { 
+  Plus, 
+  Search, 
   Users,
-  Plus,
   RefreshCw,
-  AlertCircle,
-  CheckCircle,
-  UserCheck,
-  UserX,
-  Shield,
+  Filter
 } from 'lucide-react';
 
-export default function EmployeesPage() {
+export default function WorkersPage() {
   const { user } = useAuth();
-
-  // Data state
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-
-  // Filter state
-  const [searchTerm, setSearchTerm] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Filters
+  const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState<EmployeeRole | 'all'>('all');
-
-  // Modal state
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
-  const [resetPasswordEmployee, setResetPasswordEmployee] = useState<Employee | null>(null);
-  const [deleteConfirmEmployee, setDeleteConfirmEmployee] = useState<Employee | null>(null);
-
-  // Toast state
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
-  // Load employees
-  const loadEmployees = async () => {
-    setLoading(true);
-    try {
-      const data = await getEmployees();
-      setEmployees(data);
-    } catch (error) {
-      console.error('Error loading employees:', error);
-      showToast('خطأ في تحميل الموظفين', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  
+  // Modals
+  const [showModal, setShowModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [showResetPassword, setShowResetPassword] = useState<Employee | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
     loadEmployees();
   }, []);
 
-  // Toast notification
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+  const loadEmployees = async () => {
+    try {
+      const data = await getEmployees();
+      setEmployees(data);
+    } catch (error) {
+      console.error('Error loading employees:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Calculate stats
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadEmployees();
+    setRefreshing(false);
+  };
+
+  const handleCreate = async (data: CreateEmployeeData | { fullName: string; role: EmployeeRole; phone?: string; position?: string }) => {
+    setModalLoading(true);
+    try {
+      // For create, we need the full data with username and password
+      if ('username' in data && 'password' in data) {
+        await createEmployee(data as CreateEmployeeData, user?.id || 'admin');
+      }
+      await loadEmployees();
+      setShowModal(false);
+    } catch (error: any) {
+      throw error;
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleUpdate = async (data: CreateEmployeeData | { fullName: string; role: EmployeeRole; phone?: string; position?: string }) => {
+    if (!editingEmployee) return;
+    setModalLoading(true);
+    try {
+      // For update, we only need fullName, role, phone, position
+      await updateEmployee(editingEmployee.id, {
+        fullName: data.fullName,
+        role: data.role,
+        phone: data.phone,
+        position: data.position
+      });
+      await loadEmployees();
+      setEditingEmployee(null);
+    } catch (error: any) {
+      throw error;
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleDelete = async (employeeId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا الموظف؟')) return;
+    try {
+      await deleteEmployee(employeeId);
+      await loadEmployees();
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+    }
+  };
+
+  const handleToggleStatus = async (employee: Employee) => {
+    try {
+      await toggleEmployeeStatus(employee.id, !employee.isActive);
+      await loadEmployees();
+    } catch (error) {
+      console.error('Error toggling status:', error);
+    }
+  };
+
+  const handleResetPassword = async (newPassword: string) => {
+    if (!showResetPassword) return;
+    try {
+      await resetEmployeePassword(showResetPassword.id, newPassword);
+      setShowResetPassword(null);
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      throw error;
+    }
+  };
+
+  // Filtered employees
+  const filteredEmployees = employees.filter((emp) => {
+    if (filterRole !== 'all' && emp.role !== filterRole) return false;
+    if (filterStatus === 'active' && !emp.isActive) return false;
+    if (filterStatus === 'inactive' && emp.isActive) return false;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      return (
+        emp.fullName.toLowerCase().includes(searchLower) ||
+        emp.username.toLowerCase().includes(searchLower) ||
+        emp.position?.toLowerCase().includes(searchLower)
+      );
+    }
+    return true;
+  });
+
+  // Stats
   const stats = {
     total: employees.length,
     active: employees.filter(e => e.isActive).length,
-    inactive: employees.filter(e => !e.isActive).length,
     admins: employees.filter(e => e.role === 'admin').length,
     cashiers: employees.filter(e => e.role === 'cashier').length,
     staff: employees.filter(e => e.role === 'staff').length,
   };
 
-  // Handle create employee
-  const handleCreate = async (data: CreateEmployeeData) => {
-    setActionLoading(true);
-    try {
-      await createEmployee(data, user?.id || 'system');
-      showToast('تم إضافة الموظف بنجاح', 'success');
-      setShowAddModal(false);
-      loadEmployees();
-    } catch (error: any) {
-      throw error;
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Handle update employee
-  const handleUpdate = async (data: { fullName: string; role: EmployeeRole; phone?: string; position?: string }) => {
-    if (!editEmployee) return;
-    
-    setActionLoading(true);
-    try {
-      await updateEmployee(editEmployee.id, data);
-      showToast('تم تحديث بيانات الموظف', 'success');
-      setEditEmployee(null);
-      loadEmployees();
-    } catch (error: any) {
-      throw error;
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Handle toggle status
-  const handleToggleStatus = async (employee: Employee) => {
-    setActionLoading(true);
-    try {
-      await toggleEmployeeStatus(employee.id, !employee.isActive);
-      showToast(
-        employee.isActive ? 'تم تعطيل الموظف' : 'تم تفعيل الموظف',
-        'success'
-      );
-      loadEmployees();
-    } catch (error) {
-      console.error('Error toggling status:', error);
-      showToast('حدث خطأ', 'error');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Handle reset password
-  const handleResetPassword = async (newPassword: string) => {
-    if (!resetPasswordEmployee) return;
-
-    setActionLoading(true);
-    try {
-      await resetEmployeePassword(resetPasswordEmployee.id, newPassword);
-      showToast('تم تغيير كلمة المرور بنجاح', 'success');
-      setResetPasswordEmployee(null);
-    } catch (error: any) {
-      throw error;
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Handle delete
-  const handleDelete = async () => {
-    if (!deleteConfirmEmployee) return;
-
-    setActionLoading(true);
-    try {
-      await deleteEmployee(deleteConfirmEmployee.id);
-      showToast('تم حذف الموظف', 'success');
-      setDeleteConfirmEmployee(null);
-      loadEmployees();
-    } catch (error) {
-      console.error('Error deleting employee:', error);
-      showToast('حدث خطأ أثناء الحذف', 'error');
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid #e2e8f0',
+            borderTopColor: '#6366f1',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto',
+          }}></div>
+          <p style={{ marginTop: '16px', fontSize: '14px', color: '#64748b' }}>جاري التحميل...</p>
+        </div>
+        <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '0', minHeight: 'calc(100vh - 120px)' }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px',
-        flexWrap: 'wrap',
-        gap: '16px',
-      }}>
-        <div>
-          <h1 style={{
-            fontSize: '24px',
-            fontWeight: 700,
-            color: '#0f172a',
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-          }}>
-            <Users style={{ width: '28px', height: '28px', color: '#6366f1' }} />
-            إدارة الموظفين
-          </h1>
-          <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
-            إدارة حسابات الموظفين والصلاحيات
-          </p>
+    <div style={{ minHeight: '100vh' }}>
+      <Topbar title="إدارة الموظفين" subtitle="إضافة وتعديل وإدارة الموظفين" />
+
+      <div style={{ padding: '24px' }}>
+        {/* Stats Cards */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+          gap: '16px', 
+          marginBottom: '24px' 
+        }}>
+          {[
+            { label: 'إجمالي الموظفين', value: stats.total, color: '#6366f1' },
+            { label: 'نشط', value: stats.active, color: '#22c55e' },
+            { label: 'مديرين', value: stats.admins, color: '#dc2626' },
+            { label: 'كاشير', value: stats.cashiers, color: '#f59e0b' },
+            { label: 'موظفين', value: stats.staff, color: '#3b82f6' },
+          ].map((stat, i) => (
+            <div key={i} style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              padding: '20px',
+              border: '1px solid #e2e8f0',
+            }}>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: stat.color }}>
+                {stat.value}
+              </div>
+              <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
+                {stat.label}
+              </div>
+            </div>
+          ))}
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={() => setShowAddModal(true)}
-            style={{
+
+        {/* Header & Actions */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+          flexWrap: 'wrap',
+          gap: '16px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              borderRadius: '14px',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-              border: 'none',
-              borderRadius: '10px',
+              justifyContent: 'center',
+            }}>
+              <Users style={{ width: '24px', height: '24px', color: '#ffffff' }} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                قائمة الموظفين
+              </h2>
+              <p style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
+                {filteredEmployees.length} موظف
+              </p>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                backgroundColor: '#f1f5f9',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: '#475569',
+                cursor: 'pointer',
+              }}
+            >
+              <RefreshCw style={{ 
+                width: '18px', 
+                height: '18px',
+                animation: refreshing ? 'spin 1s linear infinite' : 'none',
+              }} />
+            </button>
+            <button
+              onClick={() => setShowModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: '#ffffff',
+                cursor: 'pointer',
+              }}
+            >
+              <Plus style={{ width: '18px', height: '18px' }} />
+              إضافة موظف
+            </button>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          marginBottom: '20px',
+          flexWrap: 'wrap',
+        }}>
+          {/* Search */}
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <Search style={{
+              position: 'absolute',
+              right: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: '18px',
+              height: '18px',
+              color: '#94a3b8',
+            }} />
+            <input
+              type="text"
+              placeholder="بحث بالاسم أو اسم المستخدم..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 40px 10px 12px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                fontSize: '14px',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          {/* Role Filter */}
+          <select
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value as EmployeeRole | 'all')}
+            style={{
+              padding: '10px 16px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
               fontSize: '14px',
-              fontWeight: 600,
-              color: '#ffffff',
+              outline: 'none',
               cursor: 'pointer',
             }}
           >
-            <Plus style={{ width: '18px', height: '18px' }} />
-            إضافة موظف
-          </button>
-          <button
-            onClick={loadEmployees}
-            disabled={loading}
+            <option value="all">جميع الأدوار</option>
+            <option value="admin">مدير</option>
+            <option value="cashier">كاشير</option>
+            <option value="staff">موظف</option>
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
+              padding: '10px 16px',
               backgroundColor: '#ffffff',
               border: '1px solid #e2e8f0',
-              borderRadius: '10px',
+              borderRadius: '12px',
               fontSize: '14px',
-              fontWeight: 500,
-              color: '#475569',
-              cursor: loading ? 'not-allowed' : 'pointer',
+              outline: 'none',
+              cursor: 'pointer',
             }}
           >
-            <RefreshCw
-              style={{
-                width: '18px',
-                height: '18px',
-                animation: loading ? 'spin 1s linear infinite' : 'none',
-              }}
-            />
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: '16px',
-        marginBottom: '24px',
-      }}>
-        <div style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '14px',
-          padding: '20px',
-          border: '1px solid #e2e8f0',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '44px',
-              height: '44px',
-              backgroundColor: 'rgba(99, 102, 241, 0.1)',
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Users style={{ width: '22px', height: '22px', color: '#6366f1' }} />
-            </div>
-            <div>
-              <p style={{ fontSize: '12px', color: '#64748b' }}>إجمالي الموظفين</p>
-              <p style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a' }}>{stats.total}</p>
-            </div>
-          </div>
+            <option value="all">الكل</option>
+            <option value="active">نشط</option>
+            <option value="inactive">غير نشط</option>
+          </select>
         </div>
 
-        <div style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '14px',
-          padding: '20px',
-          border: '1px solid #e2e8f0',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '44px',
-              height: '44px',
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <UserCheck style={{ width: '22px', height: '22px', color: '#22c55e' }} />
-            </div>
-            <div>
-              <p style={{ fontSize: '12px', color: '#64748b' }}>نشط</p>
-              <p style={{ fontSize: '24px', fontWeight: 700, color: '#22c55e' }}>{stats.active}</p>
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '14px',
-          padding: '20px',
-          border: '1px solid #e2e8f0',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '44px',
-              height: '44px',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <UserX style={{ width: '22px', height: '22px', color: '#ef4444' }} />
-            </div>
-            <div>
-              <p style={{ fontSize: '12px', color: '#64748b' }}>معطل</p>
-              <p style={{ fontSize: '24px', fontWeight: 700, color: '#ef4444' }}>{stats.inactive}</p>
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '14px',
-          padding: '20px',
-          border: '1px solid #e2e8f0',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '44px',
-              height: '44px',
-              backgroundColor: 'rgba(220, 38, 38, 0.1)',
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Shield style={{ width: '22px', height: '22px', color: '#dc2626' }} />
-            </div>
-            <div>
-              <p style={{ fontSize: '12px', color: '#64748b' }}>مدراء</p>
-              <p style={{ fontSize: '24px', fontWeight: 700, color: '#dc2626' }}>{stats.admins}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Employees Table */}
-      <EmployeesTable
-        employees={employees}
-        loading={loading}
-        searchTerm={searchTerm}
-        filterRole={filterRole}
-        onSearch={setSearchTerm}
-        onFilterRole={setFilterRole}
-        onEdit={(employee) => setEditEmployee(employee)}
-        onToggleStatus={handleToggleStatus}
-        onResetPassword={(employee) => setResetPasswordEmployee(employee)}
-        onDelete={(employee) => setDeleteConfirmEmployee(employee)}
-      />
-
-      {/* Add Employee Modal */}
-      {showAddModal && (
-        <EmployeeModal
-          onClose={() => setShowAddModal(false)}
-          onSave={handleCreate}
-          loading={actionLoading}
+        {/* Employees Table */}
+        <EmployeesTable
+          employees={filteredEmployees}
+          onEdit={(emp) => setEditingEmployee(emp)}
+          onDelete={handleDelete}
+          onToggleStatus={handleToggleStatus}
+          onResetPassword={(emp) => setShowResetPassword(emp)}
         />
-      )}
+      </div>
 
-      {/* Edit Employee Modal */}
-      {editEmployee && (
+      {/* Create/Edit Modal */}
+      {(showModal || editingEmployee) && (
         <EmployeeModal
-          employee={editEmployee}
-          onClose={() => setEditEmployee(null)}
-          onSave={handleUpdate}
-          loading={actionLoading}
+          employee={editingEmployee}
+          onClose={() => {
+            setShowModal(false);
+            setEditingEmployee(null);
+          }}
+          onSave={editingEmployee ? handleUpdate : handleCreate}
+          loading={modalLoading}
         />
       )}
 
       {/* Reset Password Modal */}
-      {resetPasswordEmployee && (
+      {showResetPassword && (
         <ResetPasswordModal
-          employee={resetPasswordEmployee}
-          onClose={() => setResetPasswordEmployee(null)}
+          employee={showResetPassword}
+          onClose={() => setShowResetPassword(null)}
           onConfirm={handleResetPassword}
-          loading={actionLoading}
         />
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmEmployee && (
-        <>
-          <div
-            onClick={() => setDeleteConfirmEmployee(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              zIndex: 100,
-            }}
-          />
-          <div style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '400px',
-            maxWidth: '95vw',
-            backgroundColor: '#ffffff',
-            borderRadius: '20px',
-            zIndex: 101,
-            padding: '24px',
-            textAlign: 'center',
-          }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 20px',
-            }}>
-              <AlertCircle style={{ width: '32px', height: '32px', color: '#ef4444' }} />
-            </div>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
-              تأكيد الحذف
-            </h3>
-            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>
-              هل أنت متأكد من حذف الموظف "{deleteConfirmEmployee.fullName}"؟
-              <br />
-              <span style={{ color: '#ef4444', fontWeight: 500 }}>هذا الإجراء لا يمكن التراجع عنه.</span>
-            </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setDeleteConfirmEmployee(null)}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  backgroundColor: '#f1f5f9',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  color: '#475569',
-                  cursor: 'pointer',
-                }}
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={actionLoading}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  backgroundColor: actionLoading ? '#fca5a5' : '#ef4444',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  color: '#ffffff',
-                  cursor: actionLoading ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {actionLoading ? 'جاري الحذف...' : 'تأكيد الحذف'}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Toast Notification */}
-      {toast && (
-        <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          padding: '14px 24px',
-          backgroundColor: toast.type === 'success' ? '#22c55e' : '#ef4444',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-          zIndex: 200,
-          animation: 'slideUp 0.3s ease-out',
-        }}>
-          {toast.type === 'success' ? (
-            <CheckCircle style={{ width: '20px', height: '20px', color: '#ffffff' }} />
-          ) : (
-            <AlertCircle style={{ width: '20px', height: '20px', color: '#ffffff' }} />
-          )}
-          <span style={{ fontSize: '14px', fontWeight: 600, color: '#ffffff' }}>
-            {toast.message}
-          </span>
-        </div>
-      )}
-
-      <style jsx global>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateX(-50%) translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-          }
-        }
-      `}</style>
+      <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

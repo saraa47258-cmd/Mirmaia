@@ -17,7 +17,6 @@ import {
   Plus, 
   RefreshCw, 
   DoorOpen,
-  Users,
   Edit,
   Trash2,
   Eye,
@@ -29,6 +28,8 @@ import {
   ShoppingBag,
   MoreVertical
 } from 'lucide-react';
+
+type ScreenSize = 'mobile' | 'tablet' | 'desktop';
 
 const STATUS_CONFIG = {
   available: { label: 'متاحة', color: '#16a34a', bg: '#dcfce7' },
@@ -44,11 +45,32 @@ export default function RoomsPage() {
   const [editRoom, setEditRoom] = useState<Room | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Room | null>(null);
+  const [screenSize, setScreenSize] = useState<ScreenSize>('desktop');
   
   // Filters
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterActive, setFilterActive] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize('mobile');
+      } else if (width < 1024) {
+        setScreenSize('tablet');
+      } else {
+        setScreenSize('desktop');
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = screenSize === 'mobile';
+  const isTablet = screenSize === 'tablet';
 
   // Real-time rooms listener
   useEffect(() => {
@@ -160,19 +182,21 @@ export default function RoomsPage() {
   };
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: isMobile ? '16px' : isTablet ? '20px' : '24px' }}>
       {/* Header */}
       <div style={{
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px',
+        alignItems: isMobile ? 'stretch' : 'center',
+        gap: isMobile ? '12px' : '0',
+        marginBottom: isMobile ? '16px' : '24px',
       }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+          <h1 style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
             الغرف الخاصة
           </h1>
-          <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
+          <p style={{ fontSize: isMobile ? '12px' : '14px', color: '#64748b', marginTop: '4px' }}>
             إدارة ومتابعة الغرف الخاصة والجلسات
           </p>
         </div>
@@ -181,12 +205,13 @@ export default function RoomsPage() {
           style={{
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '8px',
-            padding: '10px 20px',
+            padding: isMobile ? '10px 16px' : '10px 20px',
             background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
             border: 'none',
             borderRadius: '12px',
-            fontSize: '14px',
+            fontSize: isMobile ? '13px' : '14px',
             fontWeight: 600,
             color: '#ffffff',
             cursor: 'pointer',
@@ -200,103 +225,103 @@ export default function RoomsPage() {
       {/* Stats Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: '16px',
-        marginBottom: '24px',
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: isMobile ? '10px' : '16px',
+        marginBottom: isMobile ? '16px' : '24px',
       }}>
         <div style={{
-          padding: '20px',
+          padding: isMobile ? '14px' : '20px',
           backgroundColor: '#ffffff',
-          borderRadius: '16px',
+          borderRadius: isMobile ? '12px' : '16px',
           border: '1px solid #e2e8f0',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '12px' }}>
             <div style={{
-              width: '44px',
-              height: '44px',
+              width: isMobile ? '36px' : '44px',
+              height: isMobile ? '36px' : '44px',
               borderRadius: '12px',
               backgroundColor: '#f1f5f9',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <DoorOpen style={{ width: '22px', height: '22px', color: '#64748b' }} />
+              <DoorOpen style={{ width: isMobile ? '18px' : '22px', height: isMobile ? '18px' : '22px', color: '#64748b' }} />
             </div>
             <div>
-              <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '2px' }}>إجمالي الغرف</p>
-              <p style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{stats.total}</p>
+              <p style={{ fontSize: isMobile ? '10px' : '12px', color: '#64748b', marginBottom: '2px' }}>إجمالي الغرف</p>
+              <p style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{stats.total}</p>
             </div>
           </div>
         </div>
         <div style={{
-          padding: '20px',
+          padding: isMobile ? '14px' : '20px',
           backgroundColor: '#f0fdf4',
-          borderRadius: '16px',
+          borderRadius: isMobile ? '12px' : '16px',
           border: '1px solid #16a34a',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '12px' }}>
             <div style={{
-              width: '44px',
-              height: '44px',
+              width: isMobile ? '36px' : '44px',
+              height: isMobile ? '36px' : '44px',
               borderRadius: '12px',
               backgroundColor: '#dcfce7',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <CheckCircle style={{ width: '22px', height: '22px', color: '#16a34a' }} />
+              <CheckCircle style={{ width: isMobile ? '18px' : '22px', height: isMobile ? '18px' : '22px', color: '#16a34a' }} />
             </div>
             <div>
-              <p style={{ fontSize: '12px', color: '#16a34a', marginBottom: '2px' }}>متاحة</p>
-              <p style={{ fontSize: '24px', fontWeight: 700, color: '#16a34a', margin: 0 }}>{stats.available}</p>
+              <p style={{ fontSize: isMobile ? '10px' : '12px', color: '#16a34a', marginBottom: '2px' }}>متاحة</p>
+              <p style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 700, color: '#16a34a', margin: 0 }}>{stats.available}</p>
             </div>
           </div>
         </div>
         <div style={{
-          padding: '20px',
+          padding: isMobile ? '14px' : '20px',
           backgroundColor: '#fef3c7',
-          borderRadius: '16px',
+          borderRadius: isMobile ? '12px' : '16px',
           border: '1px solid #f59e0b',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '12px' }}>
             <div style={{
-              width: '44px',
-              height: '44px',
+              width: isMobile ? '36px' : '44px',
+              height: isMobile ? '36px' : '44px',
               borderRadius: '12px',
               backgroundColor: '#fde68a',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <AlertCircle style={{ width: '22px', height: '22px', color: '#f59e0b' }} />
+              <AlertCircle style={{ width: isMobile ? '18px' : '22px', height: isMobile ? '18px' : '22px', color: '#f59e0b' }} />
             </div>
             <div>
-              <p style={{ fontSize: '12px', color: '#f59e0b', marginBottom: '2px' }}>محجوزة</p>
-              <p style={{ fontSize: '24px', fontWeight: 700, color: '#f59e0b', margin: 0 }}>{stats.reserved}</p>
+              <p style={{ fontSize: isMobile ? '10px' : '12px', color: '#f59e0b', marginBottom: '2px' }}>محجوزة</p>
+              <p style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 700, color: '#f59e0b', margin: 0 }}>{stats.reserved}</p>
             </div>
           </div>
         </div>
         <div style={{
-          padding: '20px',
+          padding: isMobile ? '14px' : '20px',
           backgroundColor: '#fee2e2',
-          borderRadius: '16px',
+          borderRadius: isMobile ? '12px' : '16px',
           border: '1px solid #dc2626',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '12px' }}>
             <div style={{
-              width: '44px',
-              height: '44px',
+              width: isMobile ? '36px' : '44px',
+              height: isMobile ? '36px' : '44px',
               borderRadius: '12px',
               backgroundColor: '#fecaca',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <XCircle style={{ width: '22px', height: '22px', color: '#dc2626' }} />
+              <XCircle style={{ width: isMobile ? '18px' : '22px', height: isMobile ? '18px' : '22px', color: '#dc2626' }} />
             </div>
             <div>
-              <p style={{ fontSize: '12px', color: '#dc2626', marginBottom: '2px' }}>مشغولة</p>
-              <p style={{ fontSize: '24px', fontWeight: 700, color: '#dc2626', margin: 0 }}>{stats.occupied}</p>
+              <p style={{ fontSize: isMobile ? '10px' : '12px', color: '#dc2626', marginBottom: '2px' }}>مشغولة</p>
+              <p style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 700, color: '#dc2626', margin: 0 }}>{stats.occupied}</p>
             </div>
           </div>
         </div>
@@ -305,25 +330,26 @@ export default function RoomsPage() {
       {/* Filters */}
       <div style={{
         backgroundColor: '#ffffff',
-        borderRadius: '16px',
+        borderRadius: isMobile ? '12px' : '16px',
         border: '1px solid #e2e8f0',
-        padding: '20px',
-        marginBottom: '24px',
+        padding: isMobile ? '12px' : '20px',
+        marginBottom: isMobile ? '16px' : '24px',
       }}>
         <div style={{
           display: 'flex',
-          gap: '16px',
+          gap: isMobile ? '10px' : '16px',
+          flexDirection: isMobile ? 'column' : 'row',
           flexWrap: 'wrap',
-          alignItems: 'center',
+          alignItems: isMobile ? 'stretch' : 'center',
         }}>
           {/* Search */}
-          <div style={{ flex: 1, minWidth: '200px' }}>
+          <div style={{ flex: 1, minWidth: isMobile ? '100%' : '200px' }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
               padding: '0 14px',
-              height: '44px',
+              height: isMobile ? '40px' : '44px',
               backgroundColor: '#f8fafc',
               border: '1px solid #e2e8f0',
               borderRadius: '12px',
@@ -338,7 +364,7 @@ export default function RoomsPage() {
                   flex: 1,
                   border: 'none',
                   outline: 'none',
-                  fontSize: '14px',
+                  fontSize: isMobile ? '13px' : '14px',
                   color: '#0f172a',
                   backgroundColor: 'transparent',
                 }}
@@ -347,7 +373,13 @@ export default function RoomsPage() {
           </div>
 
           {/* Status Filter */}
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px',
+            overflowX: 'auto',
+            minWidth: isMobile ? '100%' : 'auto',
+            paddingBottom: isMobile ? '4px' : '0',
+          }}>
             {[
               { value: 'all', label: 'الكل', color: '#64748b' },
               { value: 'available', label: 'متاحة', color: '#16a34a' },
@@ -358,16 +390,18 @@ export default function RoomsPage() {
                 key={option.value}
                 onClick={() => setFilterStatus(option.value)}
                 style={{
-                  padding: '8px 14px',
+                  padding: isMobile ? '6px 12px' : '8px 14px',
                   borderRadius: '10px',
                   border: filterStatus === option.value 
                     ? `2px solid ${option.color}` 
                     : '1px solid #e2e8f0',
-                  fontSize: '13px',
+                  fontSize: isMobile ? '12px' : '13px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   backgroundColor: filterStatus === option.value ? `${option.color}20` : '#ffffff',
                   color: filterStatus === option.value ? option.color : '#475569',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
                 }}
               >
                 {option.label}
@@ -376,7 +410,13 @@ export default function RoomsPage() {
           </div>
 
           {/* Active Filter */}
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px',
+            overflowX: 'auto',
+            minWidth: isMobile ? '100%' : 'auto',
+            paddingBottom: isMobile ? '4px' : '0',
+          }}>
             {[
               { value: 'all', label: 'الكل' },
               { value: 'active', label: 'نشطة' },
@@ -386,13 +426,15 @@ export default function RoomsPage() {
                 key={option.value}
                 onClick={() => setFilterActive(option.value)}
                 style={{
-                  padding: '8px 14px',
+                  padding: isMobile ? '6px 12px' : '8px 14px',
                   borderRadius: '10px',
                   border: 'none',
-                  fontSize: '13px',
+                  fontSize: isMobile ? '12px' : '13px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   backgroundColor: filterActive === option.value ? '#6366f1' : '#f1f5f9',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
                   color: filterActive === option.value ? '#ffffff' : '#475569',
                 }}
               >
@@ -406,7 +448,7 @@ export default function RoomsPage() {
       {/* Rooms Table */}
       <div style={{
         backgroundColor: '#ffffff',
-        borderRadius: '16px',
+        borderRadius: isMobile ? '12px' : '16px',
         border: '1px solid #e2e8f0',
         overflow: 'hidden',
       }}>
@@ -438,9 +480,95 @@ export default function RoomsPage() {
                 : 'لا توجد غرف'}
             </p>
           </div>
+        ) : isMobile || isTablet ? (
+          /* Mobile/Tablet Card View */
+          <div style={{ padding: '12px' }}>
+            {filteredRooms.map((room) => {
+              const statusConfig = STATUS_CONFIG[room.status] || STATUS_CONFIG.available;
+              const activeOrder = roomOrders[room.id];
+              const isInactive = room.isActive === false;
+
+              return (
+                <div
+                  key={room.id}
+                  onClick={() => setSelectedRoom(room)}
+                  style={{
+                    padding: '14px',
+                    marginBottom: '10px',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    backgroundColor: isInactive ? '#f8fafc' : '#ffffff',
+                    opacity: isInactive ? 0.6 : 1,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        backgroundColor: room.status === 'available' ? '#dcfce7' : room.status === 'reserved' ? '#fef3c7' : '#fee2e2',
+                        color: statusConfig.color,
+                        fontWeight: 700,
+                        fontSize: '14px',
+                      }}>
+                        {room.roomNumber}
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', margin: 0 }}>
+                          {room.name || `غرفة ${room.roomNumber}`}
+                        </p>
+                        <span style={{
+                          display: 'inline-flex',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          backgroundColor: statusConfig.bg,
+                          color: statusConfig.color,
+                          marginTop: '4px',
+                        }}>
+                          {statusConfig.label}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelectedRoom(room); }}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: '#f8fafc',
+                        fontSize: '12px',
+                        color: '#475569',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      التفاصيل
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b' }}>
+                    <span>
+                      {room.priceType === 'free' ? 'مجاني' : 
+                       room.hourlyRate ? `${room.hourlyRate} ر.ع/ساعة` : '-'}
+                    </span>
+                    {activeOrder && (
+                      <span style={{ color: '#6366f1', fontWeight: 600 }}>
+                        طلب: {activeOrder.total.toFixed(2)} ر.ع
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <>
-            {/* Table Header */}
+            {/* Table Header - Desktop Only */}
             <div style={{
               display: 'grid',
               gridTemplateColumns: '80px 1fr 100px 100px 120px 140px 100px',
@@ -461,7 +589,7 @@ export default function RoomsPage() {
               <div style={{ textAlign: 'center' }}>إجراءات</div>
             </div>
 
-            {/* Table Body */}
+            {/* Table Body - Desktop Only */}
             {filteredRooms.map((room) => {
               const statusConfig = STATUS_CONFIG[room.status] || STATUS_CONFIG.available;
               const activeOrder = roomOrders[room.id];
@@ -514,10 +642,20 @@ export default function RoomsPage() {
                     )}
                   </div>
 
-                  {/* Capacity */}
-                  <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                    <Users style={{ width: '14px', height: '14px', color: '#64748b' }} />
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>{room.capacity}</span>
+                  {/* Pricing */}
+                  <div style={{ textAlign: 'center' }}>
+                    {room.priceType === 'free' ? (
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#22c55e' }}>مجاني</span>
+                    ) : room.priceType === 'gender' ? (
+                      <div style={{ fontSize: '11px' }}>
+                        <div style={{ color: '#3b82f6' }}>🚹 {room.malePrice || 3} ر.ع</div>
+                        <div style={{ color: '#ec4899' }}>🚺 {room.femalePrice === 0 ? 'مجاني' : `${room.femalePrice} ر.ع`}</div>
+                      </div>
+                    ) : room.hourlyRate && room.hourlyRate > 0 ? (
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#f59e0b' }}>{room.hourlyRate} ر.ع/ساعة</span>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>-</span>
+                    )}
                   </div>
 
                   {/* Status */}
@@ -538,11 +676,26 @@ export default function RoomsPage() {
                   {/* Active Order */}
                   <div style={{ textAlign: 'center' }}>
                     {activeOrder ? (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                        <ShoppingBag style={{ width: '14px', height: '14px', color: '#6366f1' }} />
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#6366f1' }}>
-                          {activeOrder.total.toFixed(2)}
-                        </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <ShoppingBag style={{ width: '14px', height: '14px', color: '#6366f1' }} />
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#6366f1' }}>
+                            {activeOrder.total.toFixed(2)}
+                          </span>
+                        </div>
+                        {/* عرض جنس الحاجز */}
+                        {(activeOrder as any).roomGender && (
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            backgroundColor: (activeOrder as any).roomGender === 'male' ? '#dbeafe' : '#fce7f3',
+                            color: (activeOrder as any).roomGender === 'male' ? '#1d4ed8' : '#be185d',
+                          }}>
+                            {(activeOrder as any).roomGender === 'male' ? '👦 ولد' : '👧 بنت'}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <span style={{ fontSize: '12px', color: '#94a3b8' }}>-</span>
@@ -737,4 +890,6 @@ export default function RoomsPage() {
     </div>
   );
 }
+
+
 

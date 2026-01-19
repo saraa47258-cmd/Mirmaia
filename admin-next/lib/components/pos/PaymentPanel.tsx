@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Table, Room } from '@/lib/firebase/database';
 import { CartItem, POSOrder, calculateTotals } from '@/lib/pos';
 import { 
@@ -14,7 +14,8 @@ import {
   User,
   Phone,
   ChevronDown,
-  Check
+  Check,
+  UserCircle2
 } from 'lucide-react';
 
 interface PaymentPanelProps {
@@ -25,6 +26,8 @@ interface PaymentPanelProps {
   onPayNow: (order: POSOrder, paymentMethod: 'cash' | 'card', receivedAmount: number) => void;
   loading: boolean;
 }
+
+type ScreenSize = 'mobile' | 'tablet' | 'desktop';
 
 export default function PaymentPanel({ 
   items, 
@@ -37,34 +40,104 @@ export default function PaymentPanel({
   const [orderType, setOrderType] = useState<'table' | 'room' | 'takeaway'>('takeaway');
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [roomGender, setRoomGender] = useState<'male' | 'female' | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash');
   const [receivedAmount, setReceivedAmount] = useState('');
   const [showPayment, setShowPayment] = useState(false);
+  const [screenSize, setScreenSize] = useState<ScreenSize>('desktop');
 
-  const totals = calculateTotals(items, discountPercent, 0);
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize('mobile');
+      } else if (width < 1024) {
+        setScreenSize('tablet');
+      } else {
+        setScreenSize('desktop');
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = screenSize === 'mobile';
+
+  // Calculate room price based on gender
+  const roomPrice = useMemo(() => {
+    if (!selectedRoom || orderType !== 'room') return 0;
+    
+    if (selectedRoom.priceType === 'free') return 0;
+    if (selectedRoom.priceType === 'fixed') return selectedRoom.hourlyRate || 0;
+    if (selectedRoom.priceType === 'gender') {
+      if (roomGender === 'male') return selectedRoom.malePrice || 0;
+      if (roomGender === 'female') return selectedRoom.femalePrice || 0;
+      return 0; // No gender selected yet
+    }
+    return 0;
+  }, [selectedRoom, roomGender, orderType]);
+
+  // Calculate totals including room price
+  const totals = useMemo(() => {
+    const itemsTotals = calculateTotals(items, discountPercent, 0);
+    return {
+      ...itemsTotals,
+      roomPrice,
+      total: itemsTotals.total + roomPrice,
+    };
+  }, [items, discountPercent, roomPrice]);
 
   useEffect(() => {
     if (orderType === 'table') {
       setSelectedRoom(null);
+      setRoomGender(null);
     } else if (orderType === 'room') {
       setSelectedTable(null);
     } else {
       setSelectedTable(null);
       setSelectedRoom(null);
+      setRoomGender(null);
     }
   }, [orderType]);
+
+  // Reset gender when room changes
+  useEffect(() => {
+    setRoomGender(null);
+  }, [selectedRoom?.id]);
+
+  // Reset payment panel state when cart is cleared
+  useEffect(() => {
+    if (items.length === 0) {
+      setShowPayment(false);
+      setReceivedAmount('');
+      setPaymentMethod('cash');
+      setDiscountPercent(0);
+      setCustomerName('');
+      setCustomerPhone('');
+      setOrderType('takeaway');
+      setSelectedTable(null);
+      setSelectedRoom(null);
+      setRoomGender(null);
+    }
+  }, [items.length]);
 
   const change = paymentMethod === 'cash' && parseFloat(receivedAmount) > totals.total
     ? parseFloat(receivedAmount) - totals.total
     : 0;
 
+  // Check if gender is required for room
+  const needsGenderSelection = selectedRoom?.priceType === 'gender';
+  const genderSelected = !needsGenderSelection || roomGender !== null;
+
   const canPlaceOrder = items.length > 0 && (
     orderType === 'takeaway' ||
     (orderType === 'table' && selectedTable) ||
-    (orderType === 'room' && selectedRoom)
+    (orderType === 'room' && selectedRoom && genderSelected)
   );
 
   const canPay = canPlaceOrder && (
@@ -83,6 +156,8 @@ export default function PaymentPanel({
     tableNumber: selectedTable?.tableNumber,
     roomId: selectedRoom?.id,
     roomNumber: selectedRoom?.roomNumber,
+    roomGender: roomGender || undefined,
+    roomPrice: roomPrice || undefined,
     customerName: customerName || undefined,
     customerPhone: customerPhone || undefined,
   });
@@ -101,20 +176,21 @@ export default function PaymentPanel({
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100%',
+      height: isMobile ? 'auto' : '100%',
+      minHeight: isMobile ? 'calc(100vh - 200px)' : undefined,
       backgroundColor: '#ffffff',
-      borderRadius: '16px',
+      borderRadius: isMobile ? '12px' : '16px',
       overflow: 'hidden',
       border: '1px solid #e2e8f0',
     }}>
       {/* Header */}
       <div style={{
-        padding: '16px 20px',
+        padding: isMobile ? '12px 14px' : '16px 20px',
         borderBottom: '1px solid #e2e8f0',
         backgroundColor: '#f8fafc',
       }}>
         <h2 style={{
-          fontSize: '16px',
+          fontSize: isMobile ? '14px' : '16px',
           fontWeight: 700,
           color: '#0f172a',
           margin: 0,
@@ -122,7 +198,7 @@ export default function PaymentPanel({
           alignItems: 'center',
           gap: '8px',
         }}>
-          <Receipt style={{ width: '20px', height: '20px', color: '#6366f1' }} />
+          <Receipt style={{ width: isMobile ? '18px' : '20px', height: isMobile ? '18px' : '20px', color: '#6366f1' }} />
           ملخص الطلب
         </h2>
       </div>
@@ -131,20 +207,20 @@ export default function PaymentPanel({
       <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '16px',
+        padding: isMobile ? '12px' : '16px',
       }}>
         {/* Order Type */}
-        <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: isMobile ? '16px' : '20px' }}>
           <label style={{
             display: 'block',
-            fontSize: '12px',
+            fontSize: isMobile ? '11px' : '12px',
             fontWeight: 600,
             color: '#64748b',
-            marginBottom: '10px',
+            marginBottom: isMobile ? '8px' : '10px',
           }}>
             نوع الطلب
           </label>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: isMobile ? '6px' : '8px' }}>
             {[
               { value: 'takeaway', label: 'استلام', icon: ShoppingBag },
               { value: 'table', label: 'طاولة', icon: Users },
@@ -160,9 +236,9 @@ export default function PaymentPanel({
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '12px',
-                    borderRadius: '12px',
+                    gap: isMobile ? '4px' : '6px',
+                    padding: isMobile ? '10px' : '12px',
+                    borderRadius: isMobile ? '10px' : '12px',
                     border: orderType === type.value 
                       ? '2px solid #6366f1' 
                       : '2px solid #e2e8f0',
@@ -295,6 +371,127 @@ export default function PaymentPanel({
                 ))}
               </div>
             )}
+
+            {/* Gender Selection for room with gender-based pricing */}
+            {selectedRoom && selectedRoom.priceType === 'gender' && (
+              <div style={{ marginTop: '16px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#64748b',
+                  marginBottom: '10px',
+                }}>
+                  <UserCircle2 style={{ width: '14px', height: '14px' }} />
+                  نوع العميل (مطلوب)
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => setRoomGender('male')}
+                    style={{
+                      flex: 1,
+                      padding: '14px',
+                      borderRadius: '12px',
+                      border: roomGender === 'male' 
+                        ? '2px solid #3b82f6' 
+                        : '1px solid #e2e8f0',
+                      backgroundColor: roomGender === 'male' 
+                        ? '#dbeafe' 
+                        : '#f8fafc',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span style={{ fontSize: '24px' }}>👦</span>
+                    <span style={{
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: roomGender === 'male' ? '#1d4ed8' : '#475569',
+                    }}>
+                      ولد
+                    </span>
+                    <span style={{
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: roomGender === 'male' ? '#1d4ed8' : '#ef4444',
+                    }}>
+                      {(selectedRoom.malePrice || 0).toFixed(3)} ر.ع
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setRoomGender('female')}
+                    style={{
+                      flex: 1,
+                      padding: '14px',
+                      borderRadius: '12px',
+                      border: roomGender === 'female' 
+                        ? '2px solid #ec4899' 
+                        : '1px solid #e2e8f0',
+                      backgroundColor: roomGender === 'female' 
+                        ? '#fce7f3' 
+                        : '#f8fafc',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span style={{ fontSize: '24px' }}>👧</span>
+                    <span style={{
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: roomGender === 'female' ? '#be185d' : '#475569',
+                    }}>
+                      بنت
+                    </span>
+                    <span style={{
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: roomGender === 'female' ? '#be185d' : '#16a34a',
+                    }}>
+                      {(selectedRoom.femalePrice || 0) === 0 ? 'مجاني' : `${(selectedRoom.femalePrice || 0).toFixed(3)} ر.ع`}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Show room price info for other price types */}
+            {selectedRoom && selectedRoom.priceType === 'fixed' && (
+              <div style={{
+                marginTop: '12px',
+                padding: '10px 14px',
+                backgroundColor: '#fef3c7',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#92400e',
+                textAlign: 'center',
+              }}>
+                سعر الغرفة: {(selectedRoom.hourlyRate || 0).toFixed(3)} ر.ع
+              </div>
+            )}
+
+            {selectedRoom && selectedRoom.priceType === 'free' && (
+              <div style={{
+                marginTop: '12px',
+                padding: '10px 14px',
+                backgroundColor: '#dcfce7',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#16a34a',
+                textAlign: 'center',
+              }}>
+                ✨ الغرفة مجانية
+              </div>
+            )}
           </div>
         )}
 
@@ -415,11 +612,39 @@ export default function PaymentPanel({
             justifyContent: 'space-between',
             marginBottom: '10px',
           }}>
-            <span style={{ fontSize: '13px', color: '#64748b' }}>المجموع الفرعي</span>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>المجموع الفرعي (المنتجات)</span>
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
               {totals.subtotal.toFixed(3)} ر.ع
             </span>
           </div>
+          {totals.roomPrice > 0 && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginBottom: '10px',
+            }}>
+              <span style={{ fontSize: '13px', color: '#f59e0b' }}>
+                سعر الغرفة {roomGender === 'male' ? '(ولد)' : roomGender === 'female' ? '(بنت)' : ''}
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#f59e0b' }}>
+                +{totals.roomPrice.toFixed(3)} ر.ع
+              </span>
+            </div>
+          )}
+          {selectedRoom && roomGender === 'female' && (selectedRoom.femalePrice || 0) === 0 && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginBottom: '10px',
+            }}>
+              <span style={{ fontSize: '13px', color: '#16a34a' }}>
+                سعر الغرفة (بنت)
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#16a34a' }}>
+                مجاني ✨
+              </span>
+            </div>
+          )}
           {totals.discount.amount > 0 && (
             <div style={{
               display: 'flex',
@@ -701,4 +926,8 @@ export default function PaymentPanel({
     </div>
   );
 }
+
+
+
+
 

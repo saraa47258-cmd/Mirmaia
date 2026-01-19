@@ -1,0 +1,76 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+// مسارات محمية تتطلب تسجيل دخول
+const PROTECTED_ROUTES = ['/admin'];
+const PUBLIC_ROUTES = ['/login', '/api'];
+const AUTH_COOKIE_NAME = 'auth_session';
+
+// صلاحيات المسارات حسب الدور
+const ROLE_ROUTES: Record<string, string[]> = {
+  admin: ['/admin'], // المدير لديه صلاحية كاملة
+  cashier: ['/admin/cashier', '/admin/orders', '/admin/tables', '/admin/rooms', '/admin/room-orders', '/admin/staff-menu', '/admin'],
+  staff: ['/admin/staff-menu', '/admin/orders', '/admin'],
+};
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // تجاوز الملفات الثابتة و API
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.includes('.') ||
+    pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next();
+  }
+
+  // التحقق من الجلسة عبر الكوكي
+  const sessionCookie = request.cookies.get(AUTH_COOKIE_NAME);
+  const isAuthenticated = !!sessionCookie?.value;
+
+  // إذا كان المستخدم في صفحة تسجيل الدخول وهو مسجل دخوله بالفعل
+  if (pathname === '/login' && isAuthenticated) {
+    return NextResponse.redirect(new URL('/admin', request.url));
+  }
+
+  // التحقق من المسارات المحمية
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
+  
+  if (isProtectedRoute && !isAuthenticated) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // التحقق من صلاحيات الدور (يتم التحقق التفصيلي في ProtectedRoute)
+  if (isAuthenticated && isProtectedRoute) {
+    try {
+      const sessionData = JSON.parse(sessionCookie?.value || '{}');
+      const userRole = sessionData.role as string;
+      
+      if (userRole && userRole !== 'admin') {
+        const allowedRoutes = ROLE_ROUTES[userRole] || [];
+        const isAllowed = allowedRoutes.some(route => 
+          pathname === route || pathname.startsWith(route + '/')
+        );
+        
+        // السماح بالصفحة الرئيسية للأدمن للجميع
+        if (!isAllowed && pathname !== '/admin') {
+          return NextResponse.redirect(new URL('/admin', request.url));
+        }
+      }
+    } catch (e) {
+      // في حالة خطأ في قراءة الكوكي، متابعة التحقق على العميل
+    }
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|api).*)',
+  ],
+};

@@ -1,0 +1,113 @@
+/**
+ * Financial Data Reset Script
+ * 
+ * This script resets all financial/transactional data for testing purposes.
+ * 
+ * WHAT GETS DELETED:
+ * - All orders
+ * - Daily closings
+ * - Table statuses (reset to available)
+ * - Room statuses (reset to available)
+ * 
+ * WHAT STAYS:
+ * - Products
+ * - Categories
+ * - Employees/Users
+ * - Settings
+ * - Inventory items
+ */
+
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, remove, get, update } from 'firebase/database';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBD3RarLj_696emYW84zZ1tliP_Th1z6mM",
+  authDomain: "sham-coffee.firebaseapp.com",
+  databaseURL: "https://sham-coffee-default-rtdb.firebaseio.com",
+  projectId: "sham-coffee",
+  storageBucket: "sham-coffee.firebasestorage.app",
+  messagingSenderId: "483086837036",
+  appId: "1:483086837036:web:2a6bf9084050ef399ef889"
+};
+
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+const RESTAURANT_ID = 'sham-coffee-1';
+
+const getPath = (collection: string) => `restaurant-system/${collection}/${RESTAURANT_ID}`;
+
+async function resetFinancialData() {
+  console.log('🔄 Starting Financial Data Reset...\n');
+  
+  try {
+    // 1. Delete all orders
+    console.log('📋 Deleting all orders...');
+    await remove(ref(database, getPath('orders')));
+    console.log('   ✅ Orders deleted');
+
+    // 2. Delete all daily closings
+    console.log('📊 Deleting daily closings...');
+    await remove(ref(database, getPath('daily_closings')));
+    console.log('   ✅ Daily closings deleted');
+
+    // 3. Reset table statuses
+    console.log('🪑 Resetting table statuses...');
+    const tablesSnapshot = await get(ref(database, getPath('tables')));
+    if (tablesSnapshot.exists()) {
+      const tables = tablesSnapshot.val();
+      const tableUpdates: Record<string, any> = {};
+      Object.keys(tables).forEach(tableId => {
+        tableUpdates[`${getPath('tables')}/${tableId}/status`] = 'available';
+        tableUpdates[`${getPath('tables')}/${tableId}/currentOrderId`] = null;
+      });
+      await update(ref(database), tableUpdates);
+      console.log(`   ✅ ${Object.keys(tables).length} tables reset to available`);
+    } else {
+      console.log('   ⚪ No tables found');
+    }
+
+    // 4. Reset room statuses
+    console.log('🚪 Resetting room statuses...');
+    const roomsSnapshot = await get(ref(database, getPath('rooms')));
+    if (roomsSnapshot.exists()) {
+      const rooms = roomsSnapshot.val();
+      const roomUpdates: Record<string, any> = {};
+      Object.keys(rooms).forEach(roomId => {
+        roomUpdates[`${getPath('rooms')}/${roomId}/status`] = 'available';
+        roomUpdates[`${getPath('rooms')}/${roomId}/currentOrderId`] = null;
+      });
+      await update(ref(database), roomUpdates);
+      console.log(`   ✅ ${Object.keys(rooms).length} rooms reset to available`);
+    } else {
+      console.log('   ⚪ No rooms found');
+    }
+
+    console.log('\n✅ Financial data reset complete!');
+    console.log('\n📌 Summary:');
+    console.log('   - All orders: DELETED');
+    console.log('   - Daily closings: DELETED');
+    console.log('   - Tables: RESET to available');
+    console.log('   - Rooms: RESET to available');
+    console.log('\n📌 Preserved:');
+    console.log('   - Products ✓');
+    console.log('   - Categories ✓');
+    console.log('   - Employees ✓');
+    console.log('   - Inventory ✓');
+    console.log('   - Settings ✓');
+
+  } catch (error) {
+    console.error('❌ Error during reset:', error);
+    throw error;
+  }
+}
+
+// Run the reset
+resetFinancialData()
+  .then(() => {
+    console.log('\n🎉 Done! You can now test the system with fresh data.');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('Failed to reset:', error);
+    process.exit(1);
+  });

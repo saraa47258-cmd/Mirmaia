@@ -341,9 +341,9 @@ export default function OrdersPage() {
                     <p style={{ fontSize: '13px', fontWeight: 500, color: '#0f172a', margin: 0 }}>
                       {order.customerName || 'عميل'}
                     </p>
-                    {order.tableNumber && (
+                    {(order.tableNumber || order.roomNumber) && (
                       <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0 0' }}>
-                        🪑 {order.tableNumber}
+                        {order.tableNumber ? `🪑 طاولة ${order.tableNumber}` : `🚪 غرفة ${order.roomNumber}`}
                       </p>
                     )}
                   </div>

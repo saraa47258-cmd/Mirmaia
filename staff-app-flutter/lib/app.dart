@@ -5,11 +5,6 @@ import 'providers/auth_provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/staff_menu_screen.dart';
-import 'screens/cashier_screen.dart';
-import 'screens/tables_screen.dart';
-import 'screens/room_orders_screen.dart';
 
 class ShamCoffeeApp extends StatelessWidget {
   const ShamCoffeeApp({super.key});
@@ -45,23 +40,49 @@ class ShamCoffeeApp extends StatelessWidget {
   }
 
   Route<dynamic>? _generateRoute(RouteSettings settings, BuildContext context) {
-    // Protected routes
+    // Protected routes - require authentication
     final protectedRoutes = {
-      '/staff-menu': 'staffMenu',
-      '/cashier': 'cashier',
-      '/tables': 'tables',
-      '/room-orders': 'roomOrders',
+      '/home',
+      '/dashboard',
+      '/main',
     };
 
-    // Check permission for protected routes
-    if (protectedRoutes.containsKey(settings.name)) {
+    // Check authentication for protected routes
+    if (protectedRoutes.contains(settings.name)) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final permission = protectedRoutes[settings.name]!;
       
-      if (!authProvider.hasPermission(permission)) {
-        return MaterialPageRoute(
-          builder: (_) => const _AccessDeniedScreen(),
-        );
+      // If not initialized yet, show splash
+      if (!authProvider.isInitialized) {
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
+      }
+      
+      // If not authenticated, redirect to login
+      if (!authProvider.isAuthenticated) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context).pushReplacementNamed('/login');
+        });
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
+      }
+      
+      // Verify user is still active
+      if (authProvider.user != null && !authProvider.user!.isActive) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          await authProvider.logout();
+          Navigator.of(context).pushReplacementNamed('/login');
+        });
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
+      }
+    }
+
+    // Public routes
+    if (settings.name == '/login') {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      // If already authenticated, redirect to main
+      if (authProvider.isAuthenticated) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context).pushReplacementNamed('/main');
+        });
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
       }
     }
 
@@ -71,60 +92,16 @@ class ShamCoffeeApp extends StatelessWidget {
       case '/login':
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       case '/home':
-        return MaterialPageRoute(builder: (_) => const HomeScreen());
-      case '/staff-menu':
-        return MaterialPageRoute(builder: (_) => const StaffMenuScreen());
-      case '/cashier':
-        return MaterialPageRoute(builder: (_) => const CashierScreen());
-      case '/tables':
-        return MaterialPageRoute(builder: (_) => const TablesScreen());
-      case '/room-orders':
-        return MaterialPageRoute(builder: (_) => const RoomOrdersScreen());
+      case '/dashboard':
+      case '/main':
+        // Main layout with persistent sidebar
+        final args = settings.arguments as Map<String, dynamic>?;
+        final initialPage = args?['page'] as String? ?? 'dashboard';
+        return MaterialPageRoute(
+          builder: (_) => MainLayout(initialPage: initialPage),
+        );
       default:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
     }
   }
 }
-
-class _AccessDeniedScreen extends StatelessWidget {
-  const _AccessDeniedScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.block,
-              size: 80,
-              color: Colors.red.shade400,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'غير مصرح بالوصول',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'ليس لديك صلاحية للوصول لهذه الصفحة',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
-              icon: const Icon(Icons.home),
-              label: const Text('العودة للرئيسية'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-

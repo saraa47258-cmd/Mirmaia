@@ -18,9 +18,11 @@ export default function RoomModal({ room, existingRooms, onClose, onSave }: Room
   const [formData, setFormData] = useState({
     roomNumber: '',
     name: '',
-    capacity: 4,
-    notes: '',
+    priceType: 'gender' as 'free' | 'fixed' | 'gender',
     hourlyRate: 0,
+    malePrice: 3,
+    femalePrice: 0,
+    notes: '',
     isActive: true,
   });
 
@@ -29,9 +31,11 @@ export default function RoomModal({ room, existingRooms, onClose, onSave }: Room
       setFormData({
         roomNumber: room.roomNumber || '',
         name: room.name || '',
-        capacity: room.capacity || 4,
-        notes: room.notes || '',
+        priceType: room.priceType || 'gender',
         hourlyRate: room.hourlyRate || 0,
+        malePrice: room.malePrice ?? 3,
+        femalePrice: room.femalePrice ?? 0,
+        notes: room.notes || '',
         isActive: room.isActive ?? true,
       });
     }
@@ -52,12 +56,17 @@ export default function RoomModal({ room, existingRooms, onClose, onSave }: Room
       }
     }
     
-    if (formData.capacity < 1) {
-      newErrors.capacity = 'السعة يجب أن تكون 1 أو أكثر';
+    if (formData.priceType === 'fixed' && formData.hourlyRate < 0) {
+      newErrors.hourlyRate = 'السعر لا يمكن أن يكون سالباً';
     }
     
-    if (formData.hourlyRate < 0) {
-      newErrors.hourlyRate = 'السعر لا يمكن أن يكون سالباً';
+    if (formData.priceType === 'gender') {
+      if (formData.malePrice < 0) {
+        newErrors.malePrice = 'السعر لا يمكن أن يكون سالباً';
+      }
+      if (formData.femalePrice < 0) {
+        newErrors.femalePrice = 'السعر لا يمكن أن يكون سالباً';
+      }
     }
     
     setErrors(newErrors);
@@ -71,14 +80,29 @@ export default function RoomModal({ room, existingRooms, onClose, onSave }: Room
     
     setLoading(true);
     try {
-      await onSave({
+      const saveData: Partial<Room> = {
         roomNumber: formData.roomNumber.trim(),
-        name: formData.name.trim() || undefined,
-        capacity: formData.capacity,
-        notes: formData.notes.trim() || undefined,
-        hourlyRate: formData.hourlyRate || undefined,
+        priceType: formData.priceType,
         isActive: formData.isActive,
-      });
+      };
+
+      // Only add optional fields if they have values
+      if (formData.name.trim()) {
+        saveData.name = formData.name.trim();
+      }
+      if (formData.notes.trim()) {
+        saveData.notes = formData.notes.trim();
+      }
+
+      // Add pricing based on type
+      if (formData.priceType === 'fixed') {
+        saveData.hourlyRate = formData.hourlyRate;
+      } else if (formData.priceType === 'gender') {
+        saveData.malePrice = formData.malePrice;
+        saveData.femalePrice = formData.femalePrice;
+      }
+
+      await onSave(saveData);
       onClose();
     } catch (error) {
       console.error('Error saving room:', error);
@@ -104,7 +128,7 @@ export default function RoomModal({ room, existingRooms, onClose, onSave }: Room
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: '480px',
+        width: '520px',
         maxWidth: '95vw',
         maxHeight: '90vh',
         backgroundColor: '#ffffff',
@@ -219,31 +243,42 @@ export default function RoomModal({ room, existingRooms, onClose, onSave }: Room
               />
             </div>
 
-            {/* Capacity & Hourly Rate */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-                  السعة (أشخاص)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 1 })}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '14px',
-                    border: errors.capacity ? '1px solid #dc2626' : '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    outline: 'none',
-                  }}
-                />
-                {errors.capacity && (
-                  <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>{errors.capacity}</p>
-                )}
+            {/* Price Type */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                نوع التسعير
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[
+                  { value: 'free', label: 'مجاني' },
+                  { value: 'fixed', label: 'سعر ثابت' },
+                  { value: 'gender', label: 'حسب الجنس' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, priceType: option.value as 'free' | 'fixed' | 'gender' })}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      border: formData.priceType === option.value ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+                      borderRadius: '10px',
+                      backgroundColor: formData.priceType === option.value ? '#fef3c7' : '#ffffff',
+                      color: formData.priceType === option.value ? '#b45309' : '#64748b',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            {/* Fixed Price */}
+            {formData.priceType === 'fixed' && (
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
                   سعر الساعة (ر.ع)
@@ -267,7 +302,61 @@ export default function RoomModal({ room, existingRooms, onClose, onSave }: Room
                   <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>{errors.hourlyRate}</p>
                 )}
               </div>
-            </div>
+            )}
+
+            {/* Gender-based Pricing */}
+            {formData.priceType === 'gender' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                    سعر الذكور (ر.ع) 🚹
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={formData.malePrice}
+                    onChange={(e) => setFormData({ ...formData, malePrice: parseFloat(e.target.value) || 0 })}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      border: errors.malePrice ? '1px solid #dc2626' : '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      outline: 'none',
+                    }}
+                  />
+                  {errors.malePrice && (
+                    <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>{errors.malePrice}</p>
+                  )}
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                    سعر الإناث (ر.ع) 🚺
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={formData.femalePrice}
+                    onChange={(e) => setFormData({ ...formData, femalePrice: parseFloat(e.target.value) || 0 })}
+                    placeholder="0 = مجاني"
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      border: errors.femalePrice ? '1px solid #dc2626' : '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      outline: 'none',
+                    }}
+                  />
+                  {errors.femalePrice && (
+                    <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>{errors.femalePrice}</p>
+                  )}
+                  <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>ضع 0 للمجاني</p>
+                </div>
+              </div>
+            )}
 
             {/* Notes */}
             <div>
@@ -353,4 +442,3 @@ export default function RoomModal({ room, existingRooms, onClose, onSave }: Room
     </>
   );
 }
-

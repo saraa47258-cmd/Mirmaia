@@ -1,13 +1,4 @@
 class UserModel {
-  final String uid;
-  final String fullName;
-  final String username;
-  final String? email;
-  final String role;
-  final Map<String, bool> permissions;
-  final bool isActive;
-  final DateTime? createdAt;
-  final DateTime? lastLoginAt;
 
   UserModel({
     required this.uid,
@@ -65,6 +56,15 @@ class UserModel {
           : null,
     );
   }
+  final String uid;
+  final String fullName;
+  final String username;
+  final String? email;
+  final String role;
+  final Map<String, bool> permissions;
+  final bool isActive;
+  final DateTime? createdAt;
+  final DateTime? lastLoginAt;
 
   Map<String, dynamic> toMap() {
     return {
@@ -121,4 +121,8 @@ class UserModel {
     );
   }
 }
+
+
+
+
 

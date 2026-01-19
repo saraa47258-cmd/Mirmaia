@@ -6,7 +6,9 @@ import {
   Order,
   listenToTables, 
   getOrder,
-  createTable 
+  getOrders,
+  createTable,
+  isTableNumberUnique
 } from '@/lib/firebase/database';
 import TableCard from '@/lib/components/tables/TableCard';
 import TableDetailsModal from '@/lib/components/tables/TableDetailsModal';
@@ -16,9 +18,7 @@ import {
   RefreshCw, 
   Grid3X3,
   Coffee,
-  TreePine,
   Crown,
-  Umbrella,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -26,13 +26,12 @@ import {
   List
 } from 'lucide-react';
 
+type ScreenSize = 'mobile' | 'tablet' | 'desktop';
+
 const AREA_OPTIONS = [
   { value: 'all', label: 'جميع المناطق', icon: Grid3X3 },
-  { value: 'indoor', label: 'داخلي', icon: Coffee },
-  { value: 'outdoor', label: 'خارجي', icon: TreePine },
-  { value: 'room', label: 'غرف', icon: Coffee },
-  { value: 'vip', label: 'VIP', icon: Crown },
-  { value: 'terrace', label: 'تراس', icon: Umbrella },
+  { value: 'داخلي', label: 'داخلي', icon: Coffee },
+  { value: 'VIP', label: 'VIP', icon: Crown },
 ];
 
 const STATUS_OPTIONS = [
@@ -48,6 +47,7 @@ export default function TablesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [screenSize, setScreenSize] = useState<ScreenSize>('desktop');
   
   // Filters
   const [filterArea, setFilterArea] = useState('all');
@@ -55,28 +55,72 @@ export default function TablesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize('mobile');
+      } else if (width < 1024) {
+        setScreenSize('tablet');
+      } else {
+        setScreenSize('desktop');
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = screenSize === 'mobile';
+  const isTablet = screenSize === 'tablet';
+
   // Real-time tables listener
   useEffect(() => {
     setLoading(true);
     const unsubscribe = listenToTables(async (tablesData) => {
       setTables(tablesData);
       
-      // Fetch active orders for occupied tables
+      // Fetch all orders to find active orders for tables
       const ordersMap: Record<string, Order> = {};
-      await Promise.all(
-        tablesData
-          .filter(t => t.activeOrderId)
-          .map(async (table) => {
-            try {
-              const order = await getOrder(table.activeOrderId!);
-              if (order) {
-                ordersMap[table.id] = order;
+      
+      try {
+        // Get all pending orders
+        const allOrders = await getOrders();
+        const pendingOrders = allOrders.filter(o => 
+          o.status !== 'completed' && 
+          o.status !== 'cancelled' && 
+          o.paymentStatus !== 'paid'
+        );
+        
+        await Promise.all(
+          tablesData
+            .filter(t => t.status === 'occupied')
+            .map(async (table) => {
+              try {
+                // First try using activeOrderId
+                if (table.activeOrderId) {
+                  const order = await getOrder(table.activeOrderId);
+                  if (order) {
+                    ordersMap[table.id] = order;
+                    return;
+                  }
+                }
+                
+                // Fallback: Find order by tableId from pending orders
+                const tableOrder = pendingOrders.find(o => o.tableId === table.id);
+                if (tableOrder) {
+                  ordersMap[table.id] = tableOrder;
+                }
+              } catch (error) {
+                console.error('Error fetching order:', error);
               }
-            } catch (error) {
-              console.error('Error fetching order:', error);
-            }
-          })
-      );
+            })
+        );
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+      }
+      
       setTableOrders(ordersMap);
       setLoading(false);
     });
@@ -139,41 +183,43 @@ export default function TablesPage() {
   };
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: isMobile ? '16px' : isTablet ? '20px' : '24px' }}>
       {/* Header */}
       <div style={{
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px',
+        alignItems: isMobile ? 'stretch' : 'center',
+        gap: isMobile ? '16px' : '0',
+        marginBottom: isMobile ? '16px' : '24px',
       }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+          <h1 style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
             الطاولات
           </h1>
-          <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
+          <p style={{ fontSize: isMobile ? '12px' : '14px', color: '#64748b', marginTop: '4px' }}>
             إدارة ومتابعة حالة الطاولات
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: isMobile ? '8px' : '12px' }}>
           <button
             onClick={handleRefresh}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '10px 16px',
+              gap: isMobile ? '4px' : '8px',
+              padding: isMobile ? '8px 12px' : '10px 16px',
               backgroundColor: '#f1f5f9',
               border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              fontSize: '14px',
+              borderRadius: isMobile ? '10px' : '12px',
+              fontSize: isMobile ? '12px' : '14px',
               fontWeight: 600,
               color: '#475569',
               cursor: 'pointer',
             }}
           >
-            <RefreshCw style={{ width: '18px', height: '18px' }} />
-            تحديث
+            <RefreshCw style={{ width: isMobile ? '16px' : '18px', height: isMobile ? '16px' : '18px' }} />
+            {!isMobile && 'تحديث'}
           </button>
           <button
             onClick={() => setShowAddModal(true)}
@@ -200,73 +246,73 @@ export default function TablesPage() {
       {/* Stats Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: '16px',
-        marginBottom: '24px',
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: isMobile ? '10px' : '16px',
+        marginBottom: isMobile ? '16px' : '24px',
       }}>
         <div style={{
-          padding: '20px',
+          padding: isMobile ? '14px' : '20px',
           backgroundColor: '#ffffff',
-          borderRadius: '16px',
+          borderRadius: isMobile ? '12px' : '16px',
           border: '1px solid #e2e8f0',
         }}>
-          <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>إجمالي الطاولات</p>
-          <p style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{stats.total}</p>
+          <p style={{ fontSize: isMobile ? '11px' : '12px', color: '#64748b', marginBottom: '4px' }}>إجمالي الطاولات</p>
+          <p style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{stats.total}</p>
         </div>
         <div style={{
-          padding: '20px',
+          padding: isMobile ? '14px' : '20px',
           backgroundColor: '#f0fdf4',
-          borderRadius: '16px',
+          borderRadius: isMobile ? '12px' : '16px',
           border: '1px solid #16a34a',
         }}>
-          <p style={{ fontSize: '12px', color: '#16a34a', marginBottom: '4px' }}>متاحة</p>
-          <p style={{ fontSize: '28px', fontWeight: 700, color: '#16a34a', margin: 0 }}>{stats.available}</p>
+          <p style={{ fontSize: isMobile ? '11px' : '12px', color: '#16a34a', marginBottom: '4px' }}>متاحة</p>
+          <p style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: 700, color: '#16a34a', margin: 0 }}>{stats.available}</p>
         </div>
         <div style={{
-          padding: '20px',
+          padding: isMobile ? '14px' : '20px',
           backgroundColor: '#fef3c7',
-          borderRadius: '16px',
+          borderRadius: isMobile ? '12px' : '16px',
           border: '1px solid #f59e0b',
         }}>
-          <p style={{ fontSize: '12px', color: '#f59e0b', marginBottom: '4px' }}>محجوزة</p>
-          <p style={{ fontSize: '28px', fontWeight: 700, color: '#f59e0b', margin: 0 }}>{stats.reserved}</p>
+          <p style={{ fontSize: isMobile ? '11px' : '12px', color: '#f59e0b', marginBottom: '4px' }}>محجوزة</p>
+          <p style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: 700, color: '#f59e0b', margin: 0 }}>{stats.reserved}</p>
         </div>
         <div style={{
-          padding: '20px',
+          padding: isMobile ? '14px' : '20px',
           backgroundColor: '#fee2e2',
-          borderRadius: '16px',
+          borderRadius: isMobile ? '12px' : '16px',
           border: '1px solid #dc2626',
         }}>
-          <p style={{ fontSize: '12px', color: '#dc2626', marginBottom: '4px' }}>مشغولة</p>
-          <p style={{ fontSize: '28px', fontWeight: 700, color: '#dc2626', margin: 0 }}>{stats.occupied}</p>
+          <p style={{ fontSize: isMobile ? '11px' : '12px', color: '#dc2626', marginBottom: '4px' }}>مشغولة</p>
+          <p style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: 700, color: '#dc2626', margin: 0 }}>{stats.occupied}</p>
         </div>
       </div>
 
       {/* Filters */}
       <div style={{
         backgroundColor: '#ffffff',
-        borderRadius: '16px',
+        borderRadius: isMobile ? '12px' : '16px',
         border: '1px solid #e2e8f0',
-        padding: '20px',
-        marginBottom: '24px',
+        padding: isMobile ? '12px' : '20px',
+        marginBottom: isMobile ? '16px' : '24px',
       }}>
         <div style={{
           display: 'flex',
-          gap: '16px',
+          gap: isMobile ? '10px' : '16px',
           flexWrap: 'wrap',
           alignItems: 'center',
         }}>
           {/* Search */}
-          <div style={{ flex: 1, minWidth: '200px' }}>
+          <div style={{ flex: 1, minWidth: isMobile ? '100%' : '200px' }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
               padding: '0 14px',
-              height: '44px',
+              height: isMobile ? '40px' : '44px',
               backgroundColor: '#f8fafc',
               border: '1px solid #e2e8f0',
-              borderRadius: '12px',
+              borderRadius: isMobile ? '10px' : '12px',
             }}>
               <Search style={{ width: '18px', height: '18px', color: '#94a3b8' }} />
               <input
@@ -278,7 +324,7 @@ export default function TablesPage() {
                   flex: 1,
                   border: 'none',
                   outline: 'none',
-                  fontSize: '14px',
+                  fontSize: isMobile ? '13px' : '14px',
                   color: '#0f172a',
                   backgroundColor: 'transparent',
                 }}
@@ -286,8 +332,14 @@ export default function TablesPage() {
             </div>
           </div>
 
-          {/* Area Filter */}
-          <div style={{ display: 'flex', gap: '8px' }}>
+          {/* Area Filter - Scrollable on mobile */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px',
+            overflowX: 'auto',
+            minWidth: isMobile ? '100%' : 'auto',
+            paddingBottom: isMobile ? '4px' : '0',
+          }}>
             {AREA_OPTIONS.map((option) => {
               const Icon = option.icon;
               return (
@@ -298,14 +350,16 @@ export default function TablesPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    padding: '8px 14px',
+                    padding: isMobile ? '6px 10px' : '8px 14px',
                     borderRadius: '10px',
                     border: 'none',
-                    fontSize: '13px',
+                    fontSize: isMobile ? '12px' : '13px',
                     fontWeight: 600,
                     cursor: 'pointer',
                     backgroundColor: filterArea === option.value ? '#6366f1' : '#f1f5f9',
                     color: filterArea === option.value ? '#ffffff' : '#475569',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}
                 >
                   <Icon style={{ width: '14px', height: '14px' }} />
@@ -315,8 +369,14 @@ export default function TablesPage() {
             })}
           </div>
 
-          {/* Status Filter */}
-          <div style={{ display: 'flex', gap: '8px' }}>
+          {/* Status Filter - Scrollable on mobile */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px',
+            overflowX: 'auto',
+            minWidth: isMobile ? '100%' : 'auto',
+            paddingBottom: isMobile ? '4px' : '0',
+          }}>
             {STATUS_OPTIONS.map((option) => {
               const Icon = option.icon;
               return (
@@ -327,16 +387,18 @@ export default function TablesPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    padding: '8px 14px',
+                    padding: isMobile ? '6px 10px' : '8px 14px',
                     borderRadius: '10px',
                     border: filterStatus === option.value 
                       ? `2px solid ${option.color}` 
                       : '1px solid #e2e8f0',
-                    fontSize: '13px',
+                    fontSize: isMobile ? '12px' : '13px',
                     fontWeight: 600,
                     cursor: 'pointer',
                     backgroundColor: filterStatus === option.value ? `${option.color}20` : '#ffffff',
                     color: filterStatus === option.value ? option.color : '#475569',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}
                 >
                   <Icon style={{ width: '14px', height: '14px' }} />
@@ -428,9 +490,13 @@ export default function TablesPage() {
         <div style={{
           display: 'grid',
           gridTemplateColumns: viewMode === 'grid' 
-            ? 'repeat(auto-fill, minmax(260px, 1fr))' 
+            ? isMobile 
+              ? 'repeat(auto-fill, minmax(150px, 1fr))'
+              : isTablet
+                ? 'repeat(auto-fill, minmax(200px, 1fr))'
+                : 'repeat(auto-fill, minmax(260px, 1fr))' 
             : '1fr',
-          gap: '16px',
+          gap: isMobile ? '10px' : '16px',
         }}>
           {filteredTables.map((table) => (
             <TableCard
@@ -482,11 +548,11 @@ function AddTableModal({
   onSave: (data: any) => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     tableNumber: '',
     name: '',
-    area: 'indoor',
-    capacity: 4,
+    area: 'داخلي' as 'داخلي' | 'VIP',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -494,17 +560,18 @@ function AddTableModal({
     if (!formData.tableNumber) return;
     
     setLoading(true);
+    setError('');
+    
     try {
       await onSave({
-        tableNumber: formData.tableNumber,
-        name: formData.name || `طاولة ${formData.tableNumber}`,
+        tableNumber: formData.tableNumber.trim(),
+        name: formData.name.trim() || undefined,
         area: formData.area,
-        capacity: formData.capacity,
         status: 'available',
       });
-    } catch (error) {
-      console.error('Error creating table:', error);
-    } finally {
+    } catch (err: any) {
+      console.error('Error creating table:', err);
+      setError(err.message || 'حدث خطأ أثناء إضافة الطاولة');
       setLoading(false);
     }
   };
@@ -562,6 +629,21 @@ function AddTableModal({
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+          {/* Error Message */}
+          {error && (
+            <div style={{
+              padding: '12px 16px',
+              backgroundColor: '#fee2e2',
+              borderRadius: '12px',
+              marginBottom: '16px',
+              color: '#dc2626',
+              fontSize: '14px',
+              fontWeight: 500,
+            }}>
+              {error}
+            </div>
+          )}
+
           <div style={{ display: 'grid', gap: '16px' }}>
             {/* Table Number */}
             <div>
@@ -606,14 +688,15 @@ function AddTableModal({
               />
             </div>
 
-            {/* Area */}
+            {/* Area - Only داخلي and VIP */}
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-                المنطقة
+                المنطقة *
               </label>
               <select
                 value={formData.area}
-                onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, area: e.target.value as 'داخلي' | 'VIP' })}
+                required
                 style={{
                   width: '100%',
                   padding: '12px 14px',
@@ -622,36 +705,12 @@ function AddTableModal({
                   borderRadius: '12px',
                   outline: 'none',
                   backgroundColor: '#ffffff',
+                  cursor: 'pointer',
                 }}
               >
-                <option value="indoor">داخلي</option>
-                <option value="outdoor">خارجي</option>
-                <option value="room">غرفة</option>
-                <option value="vip">VIP</option>
-                <option value="terrace">تراس</option>
+                <option value="داخلي">داخلي</option>
+                <option value="VIP">VIP</option>
               </select>
-            </div>
-
-            {/* Capacity */}
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-                السعة (عدد الأشخاص)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="20"
-                value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 4 })}
-                style={{
-                  width: '100%',
-                  padding: '12px 14px',
-                  fontSize: '14px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '12px',
-                  outline: 'none',
-                }}
-              />
             </div>
           </div>
 
@@ -696,4 +755,6 @@ function AddTableModal({
     </>
   );
 }
+
+
 

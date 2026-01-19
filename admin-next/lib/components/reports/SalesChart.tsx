@@ -307,3 +307,7 @@ export default function SalesChart({ data, loading, trend }: SalesChartProps) {
   );
 }
 
+
+
+
+

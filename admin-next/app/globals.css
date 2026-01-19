@@ -18,9 +18,10 @@ body {
   font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
   background-color: #f1f5f9;
   color: #1e293b;
-  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
 }
 
 /* Login page override */
@@ -51,4 +52,165 @@ body:has(.login-page) {
 ::selection {
   background: rgba(99, 102, 241, 0.2);
   color: #4f46e5;
+}
+
+/* ===== RESPONSIVE UTILITIES ===== */
+
+/* Responsive Container */
+.responsive-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Responsive Grid */
+.responsive-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+/* Responsive Flex */
+.responsive-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Hide on specific breakpoints */
+.hide-mobile { display: block; }
+.hide-desktop { display: none; }
+.show-mobile { display: none; }
+.show-desktop { display: block; }
+
+/* ===== BREAKPOINTS ===== */
+
+/* Small Mobile (< 480px) */
+@media (max-width: 479px) {
+  html {
+    font-size: 14px;
+  }
+  
+  .responsive-container {
+    padding: 0 12px;
+  }
+  
+  .hide-mobile { display: none !important; }
+  .show-mobile { display: block !important; }
+}
+
+/* Mobile (480px - 767px) */
+@media (min-width: 480px) and (max-width: 767px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .hide-mobile { display: none !important; }
+  .show-mobile { display: block !important; }
+}
+
+/* Tablet (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .responsive-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .responsive-container {
+    padding: 0 24px;
+  }
+}
+
+/* Desktop (1024px - 1279px) */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .responsive-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .hide-desktop { display: none !important; }
+  .show-desktop { display: block !important; }
+}
+
+/* Large Desktop (1280px - 1535px) */
+@media (min-width: 1280px) and (max-width: 1535px) {
+  .responsive-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Extra Large Desktop (1536px+) */
+@media (min-width: 1536px) {
+  .responsive-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  
+  .responsive-container {
+    max-width: 1600px;
+  }
+}
+
+/* ===== ANIMATION FOR SMOOTH TRANSITIONS ===== */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth resize transitions */
+* {
+  transition-property: width, max-width, padding, margin, font-size;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+
+/* Disable transitions for elements that shouldn't animate on resize */
+button, a, input, select, textarea {
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+}
+
+/* Print Styles for Receipt */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  
+  #receipt-content,
+  #receipt-content * {
+    visibility: visible !important;
+  }
+  
+  #receipt-content {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 80mm !important;
+    padding: 8mm !important;
+    background: white !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+  
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
 }

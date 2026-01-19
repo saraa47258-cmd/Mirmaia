@@ -543,3 +543,7 @@ export default function ProductModal({ product, categories, onClose, onSave }: P
   );
 }
 
+
+
+
+

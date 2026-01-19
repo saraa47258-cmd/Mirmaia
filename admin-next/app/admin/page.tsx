@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/context/AuthContext';
 import { getTodayOrders, getSalesStats, getProducts } from '@/lib/firebase/database';
 import { Order } from '@/lib/firebase/database';
 import Topbar from '@/lib/components/Topbar';
@@ -14,7 +15,10 @@ import {
   Users
 } from 'lucide-react';
 
+type ScreenSize = 'mobile' | 'tablet' | 'desktop';
+
 export default function AdminDashboard() {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     totalRevenue: 0,
     ordersCount: 0,
@@ -23,6 +27,27 @@ export default function AdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [screenSize, setScreenSize] = useState<ScreenSize>('desktop');
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize('mobile');
+      } else if (width < 1024) {
+        setScreenSize('tablet');
+      } else {
+        setScreenSize('desktop');
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = screenSize === 'mobile';
+  const isTablet = screenSize === 'tablet';
 
   useEffect(() => {
     loadData();
@@ -64,7 +89,10 @@ export default function AdminDashboard() {
     }
   };
 
-  const kpiCards = [
+  // Check if user can see financial data (admin and cashier only)
+  const canSeeFinancialData = user?.role === 'admin' || user?.role === 'cashier';
+
+  const allKpiCards = [
     {
       title: 'إجمالي الإيرادات',
       value: `${stats.totalRevenue.toFixed(3)}`,
@@ -74,6 +102,7 @@ export default function AdminDashboard() {
       icon: DollarSign,
       gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
       shadowColor: 'rgba(16, 185, 129, 0.3)',
+      requiresFinancial: true,
     },
     {
       title: 'الطلبات اليوم',
@@ -84,6 +113,7 @@ export default function AdminDashboard() {
       icon: ShoppingCart,
       gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
       shadowColor: 'rgba(59, 130, 246, 0.3)',
+      requiresFinancial: false,
     },
     {
       title: 'المنتجات النشطة',
@@ -94,6 +124,7 @@ export default function AdminDashboard() {
       icon: Package,
       gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
       shadowColor: 'rgba(245, 158, 11, 0.3)',
+      requiresFinancial: false,
     },
     {
       title: 'الطلبات المدفوعة',
@@ -104,8 +135,14 @@ export default function AdminDashboard() {
       icon: Users,
       gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
       shadowColor: 'rgba(139, 92, 246, 0.3)',
+      requiresFinancial: true,
     },
   ];
+
+  // Filter KPI cards based on user permissions
+  const kpiCards = canSeeFinancialData 
+    ? allKpiCards 
+    : allKpiCards.filter(card => !card.requiresFinancial);
 
   const getStatusStyle = (status: string) => {
     const styles: Record<string, { bg: string; color: string }> = {
@@ -157,9 +194,18 @@ export default function AdminDashboard() {
     <div style={{ minHeight: '100vh' }}>
       <Topbar title="لوحة التحكم" subtitle="نظرة عامة على الأداء" />
       
-      <div style={{ padding: '24px' }}>
+      <div style={{ padding: isMobile ? '16px' : isTablet ? '20px' : '24px' }}>
         {/* KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: isMobile 
+            ? 'repeat(1, 1fr)' 
+            : isTablet 
+              ? 'repeat(2, 1fr)'
+              : 'repeat(auto-fit, minmax(240px, 1fr))', 
+          gap: isMobile ? '12px' : '20px', 
+          marginBottom: isMobile ? '16px' : '24px' 
+        }}>
           {kpiCards.map((kpi, index) => {
             const Icon = kpi.icon;
             return (
@@ -167,43 +213,43 @@ export default function AdminDashboard() {
                 key={index}
                 style={{
                   backgroundColor: '#ffffff',
-                  borderRadius: '20px',
-                  padding: '24px',
+                  borderRadius: isMobile ? '16px' : '20px',
+                  padding: isMobile ? '16px' : '24px',
                   border: '1px solid #e2e8f0',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? '14px' : '20px' }}>
                   <div style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '14px',
+                    width: isMobile ? '40px' : '48px',
+                    height: isMobile ? '40px' : '48px',
+                    borderRadius: isMobile ? '12px' : '14px',
                     background: kpi.gradient,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     boxShadow: `0 4px 12px ${kpi.shadowColor}`,
                   }}>
-                    <Icon style={{ width: '22px', height: '22px', color: '#ffffff' }} />
+                    <Icon style={{ width: isMobile ? '18px' : '22px', height: isMobile ? '18px' : '22px', color: '#ffffff' }} />
                   </div>
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
-                    fontSize: '12px',
+                    fontSize: isMobile ? '11px' : '12px',
                     fontWeight: 600,
                     color: kpi.trend === 'up' ? '#16a34a' : kpi.trend === 'down' ? '#dc2626' : '#64748b',
                   }}>
-                    {kpi.trend === 'up' && <TrendingUp style={{ width: '14px', height: '14px' }} />}
-                    {kpi.trend === 'down' && <TrendingDown style={{ width: '14px', height: '14px' }} />}
+                    {kpi.trend === 'up' && <TrendingUp style={{ width: isMobile ? '12px' : '14px', height: isMobile ? '12px' : '14px' }} />}
+                    {kpi.trend === 'down' && <TrendingDown style={{ width: isMobile ? '12px' : '14px', height: isMobile ? '12px' : '14px' }} />}
                     <span>{kpi.change}</span>
                   </div>
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>{kpi.value}</span>
-                    <span style={{ fontSize: '14px', color: '#64748b' }}>{kpi.unit}</span>
+                    <span style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: 700, color: '#0f172a' }}>{kpi.value}</span>
+                    <span style={{ fontSize: isMobile ? '12px' : '14px', color: '#64748b' }}>{kpi.unit}</span>
                   </div>
-                  <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>{kpi.title}</p>
+                  <p style={{ fontSize: isMobile ? '12px' : '13px', color: '#94a3b8', marginTop: '4px' }}>{kpi.title}</p>
                 </div>
               </div>
             );
@@ -213,7 +259,7 @@ export default function AdminDashboard() {
         {/* Recent Orders Table */}
         <div style={{
           backgroundColor: '#ffffff',
-          borderRadius: '20px',
+          borderRadius: isMobile ? '16px' : '20px',
           border: '1px solid #e2e8f0',
           overflow: 'hidden',
         }}>
@@ -249,7 +295,9 @@ export default function AdminDashboard() {
               <tr style={{ backgroundColor: '#f8fafc' }}>
                 <th style={{ padding: '14px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>رقم الطلب</th>
                 <th style={{ padding: '14px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>العميل</th>
-                <th style={{ padding: '14px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>المبلغ</th>
+                {canSeeFinancialData && (
+                  <th style={{ padding: '14px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>المبلغ</th>
+                )}
                 <th style={{ padding: '14px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>الحالة</th>
                 <th style={{ padding: '14px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>الوقت</th>
               </tr>
@@ -257,7 +305,7 @@ export default function AdminDashboard() {
             <tbody>
               {recentOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '48px 24px', textAlign: 'center', fontSize: '14px', color: '#64748b' }}>
+                  <td colSpan={canSeeFinancialData ? 5 : 4} style={{ padding: '48px 24px', textAlign: 'center', fontSize: '14px', color: '#64748b' }}>
                     لا توجد طلبات
                   </td>
                 </tr>
@@ -272,9 +320,11 @@ export default function AdminDashboard() {
                       <td style={{ padding: '16px 24px', fontSize: '14px', color: '#475569' }}>
                         {order.customerName || order.tableNumber || 'غير محدد'}
                       </td>
-                      <td style={{ padding: '16px 24px', fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
-                        {order.total.toFixed(3)} ر.ع
-                      </td>
+                      {canSeeFinancialData && (
+                        <td style={{ padding: '16px 24px', fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                          {order.total.toFixed(3)} ر.ع
+                        </td>
+                      )}
                       <td style={{ padding: '16px 24px' }}>
                         <span style={{
                           display: 'inline-flex',

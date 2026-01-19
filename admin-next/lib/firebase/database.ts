@@ -85,18 +85,102 @@ export interface Category {
   updatedAt?: string;
 }
 
+// Worker Permission System
+export interface WorkerPermissions {
+  // Module access
+  modules: {
+    staffMenu: boolean;
+    orders: boolean;
+    tables: boolean;
+    rooms: boolean;
+    cashier: boolean;
+    inventory: boolean;
+    reports: boolean;
+    products: boolean;
+  };
+  // Action permissions
+  actions: {
+    createOrder: boolean;
+    editOrder: boolean;
+    cancelOrder: boolean;
+    processPayment: boolean;
+    applyDiscount: boolean;
+    viewFinancials: boolean;
+    manageProducts: boolean;
+    manageTables: boolean;
+    manageRooms: boolean;
+    dailyClosing: boolean;
+  };
+}
+
+// Default permissions for new workers
+export const getDefaultWorkerPermissions = (): WorkerPermissions => ({
+  modules: {
+    staffMenu: true,
+    orders: false,
+    tables: false,
+    rooms: false,
+    cashier: false,
+    inventory: false,
+    reports: false,
+    products: false,
+  },
+  actions: {
+    createOrder: true,
+    editOrder: false,
+    cancelOrder: false,
+    processPayment: false,
+    applyDiscount: false,
+    viewFinancials: false,
+    manageProducts: false,
+    manageTables: false,
+    manageRooms: false,
+    dailyClosing: false,
+  },
+});
+
+// Full permissions for admin/cashier
+export const getFullPermissions = (): WorkerPermissions => ({
+  modules: {
+    staffMenu: true,
+    orders: true,
+    tables: true,
+    rooms: true,
+    cashier: true,
+    inventory: true,
+    reports: true,
+    products: true,
+  },
+  actions: {
+    createOrder: true,
+    editOrder: true,
+    cancelOrder: true,
+    processPayment: true,
+    applyDiscount: true,
+    viewFinancials: true,
+    manageProducts: true,
+    manageTables: true,
+    manageRooms: true,
+    dailyClosing: true,
+  },
+});
+
 export interface Worker {
   id: string;
-  name: string;
+  name?: string;
+  fullName?: string;
   username: string;
   password: string;
   position: string;
   phone?: string;
-  active: boolean;
-  permissions?: 'full' | 'menu-only';
-  role?: 'worker';
+  active?: boolean;
+  isActive?: boolean;
+  permissions?: 'full' | 'menu-only' | string[]; // Legacy
+  detailedPermissions?: WorkerPermissions; // New detailed permissions
+  role?: 'staff' | 'cashier' | 'worker';
   restaurantId: string;
 }
+
 
 export interface Restaurant {
   id: string;
@@ -113,8 +197,7 @@ export interface Table {
   id: string;
   tableNumber: string;
   name?: string;
-  area: 'indoor' | 'outdoor' | 'room' | 'vip' | 'terrace';
-  capacity: number;
+  area: 'داخلي' | 'VIP';
   status: 'available' | 'reserved' | 'occupied';
   activeOrderId?: string | null;
   activeOrder?: Order | null;
@@ -128,7 +211,6 @@ export interface Room {
   id: string;
   roomNumber: string;
   name?: string;
-  capacity: number;
   status: 'available' | 'reserved' | 'occupied';
   notes?: string;
   isActive: boolean;
@@ -136,7 +218,11 @@ export interface Room {
   activeOrder?: Order | null;
   reservedBy?: string;
   reservedAt?: string;
-  hourlyRate?: number;
+  // Pricing
+  priceType?: 'free' | 'fixed' | 'gender'; // free = مجاني, fixed = سعر ثابت, gender = حسب الجنس
+  hourlyRate?: number; // For fixed pricing
+  malePrice?: number; // سعر الذكور (e.g., 3 OMR)
+  femalePrice?: number; // سعر الإناث (e.g., 0 = free)
   createdAt?: string;
   updatedAt?: string;
 }
@@ -144,14 +230,104 @@ export interface Room {
 // Database paths
 const getPath = (collection: string) => `restaurant-system/${collection}/${RESTAURANT_ID}`;
 
-// Orders
-export const getOrders = async (): Promise<Order[]> => {
+// Types for pagination
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  hasMore: boolean;
+}
+
+export interface DateRange {
+  start: Date;
+  end: Date;
+}
+
+// Orders - with pagination support
+export const getOrders = async (limit?: number): Promise<Order[]> => {
   const snapshot = await get(ref(database, getPath('orders')));
   const data = snapshot.val() || {};
-  return Object.entries(data).map(([id, order]: [string, any]) => ({
+  let orders = Object.entries(data).map(([id, order]: [string, any]) => ({
     id,
     ...order,
   }));
+  
+  // Sort by timestamp descending
+  orders.sort((a, b) => {
+    const timeA = a.timestamp || new Date(a.createdAt).getTime();
+    const timeB = b.timestamp || new Date(b.createdAt).getTime();
+    return timeB - timeA;
+  });
+  
+  // Apply limit if specified
+  if (limit && limit > 0) {
+    orders = orders.slice(0, limit);
+  }
+  
+  return orders;
+};
+
+// Get orders with date range filter (optimized)
+export const getOrdersByDateRange = async (dateRange: DateRange, limit?: number): Promise<Order[]> => {
+  const snapshot = await get(ref(database, getPath('orders')));
+  const data = snapshot.val() || {};
+  
+  const startTime = dateRange.start.getTime();
+  const endTime = dateRange.end.getTime();
+  
+  let orders = Object.entries(data)
+    .map(([id, order]: [string, any]) => ({ id, ...order }))
+    .filter((order: Order) => {
+      const orderTime = order.timestamp || new Date(order.createdAt).getTime();
+      return orderTime >= startTime && orderTime <= endTime;
+    })
+    .sort((a, b) => {
+      const timeA = a.timestamp || new Date(a.createdAt).getTime();
+      const timeB = b.timestamp || new Date(b.createdAt).getTime();
+      return timeB - timeA;
+    });
+  
+  if (limit && limit > 0) {
+    orders = orders.slice(0, limit);
+  }
+  
+  return orders;
+};
+
+// Helper to get date range for common filters
+export const getDateRangeForFilter = (
+  filter: 'today' | 'week' | 'month' | 'year' | 'custom',
+  customStart?: string,
+  customEnd?: string
+): DateRange => {
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+
+  let start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+
+  switch (filter) {
+    case 'today':
+      break;
+    case 'week':
+      start.setDate(start.getDate() - 7);
+      break;
+    case 'month':
+      start.setMonth(start.getMonth() - 1);
+      break;
+    case 'year':
+      start.setFullYear(start.getFullYear() - 1);
+      break;
+    case 'custom':
+      if (customStart) start = new Date(customStart);
+      if (customEnd) {
+        end.setTime(new Date(customEnd).getTime());
+        end.setHours(23, 59, 59, 999);
+      }
+      break;
+  }
+
+  return { start, end };
 };
 
 export const getOrder = async (orderId: string): Promise<Order | null> => {
@@ -182,14 +358,73 @@ export const updateOrderStatus = async (orderId: string, status: string): Promis
 
 export const createOrder = async (order: Omit<Order, 'id'>): Promise<string> => {
   const newRef = push(ref(database, getPath('orders')));
-  const orderData = {
-    ...order,
+  
+  // Clean the order data to remove undefined values (Firebase doesn't accept undefined)
+  const cleanItems = order.items.map(item => {
+    const cleanItem: any = {
+      id: item.id,
+      name: item.name,
+      price: item.price || 0,
+      quantity: item.quantity,
+      itemTotal: item.itemTotal || item.price * item.quantity,
+    };
+    if (item.emoji) cleanItem.emoji = item.emoji;
+    if (item.note) cleanItem.note = item.note;
+    return cleanItem;
+  });
+
+  const orderData: any = {
+    items: cleanItems,
+    total: order.total || 0,
+    status: order.status || 'pending',
     restaurantId: RESTAURANT_ID,
     createdAt: new Date().toISOString(),
     timestamp: Date.now(),
+    itemsCount: cleanItems.reduce((sum, item) => sum + item.quantity, 0),
   };
+
+  // Add optional fields only if they have values
+  if (order.subtotal !== undefined) orderData.subtotal = order.subtotal;
+  if (order.discount) orderData.discount = order.discount;
+  if (order.paymentMethod) orderData.paymentMethod = order.paymentMethod;
+  if (order.paymentStatus) orderData.paymentStatus = order.paymentStatus;
+  if (order.customerName) orderData.customerName = order.customerName;
+  if (order.tableNumber) orderData.tableNumber = order.tableNumber;
+  if (order.tableId) orderData.tableId = order.tableId;
+  if (order.roomId) orderData.roomId = order.roomId;
+  if (order.roomNumber) orderData.roomNumber = order.roomNumber;
+  if (order.orderType) orderData.orderType = order.orderType;
+  if (order.workerId) orderData.workerId = order.workerId;
+  if (order.workerName) orderData.workerName = order.workerName;
+  if (order.source) orderData.source = order.source;
+
+  // Auto-detect table and set tableId/orderType if tableNumber is provided
+  let foundTableId: string | null = null;
+  if (order.tableNumber && !order.tableId) {
+    const table = await getTableByNumber(order.tableNumber);
+    if (table) {
+      foundTableId = table.id;
+      orderData.tableId = table.id;
+      orderData.orderType = 'table';
+    }
+  } else if (order.tableId) {
+    foundTableId = order.tableId;
+  }
+
   await set(newRef, orderData);
-  return newRef.key!;
+  const orderId = newRef.key!;
+
+  // Automatically set table status to 'occupied' when order is created for a table
+  if (foundTableId) {
+    try {
+      await setTableStatus(foundTableId, 'occupied', orderId);
+    } catch (error) {
+      console.error('Failed to update table status:', error);
+      // Don't throw - the order was created successfully
+    }
+  }
+
+  return orderId;
 };
 
 export const listenToOrder = (orderId: string, callback: (order: Order | null) => void): () => void => {
@@ -208,26 +443,138 @@ export const listenToOrder = (orderId: string, callback: (order: Order | null) =
 export const getProducts = async (): Promise<Product[]> => {
   const snapshot = await get(ref(database, getPath('menu')));
   const data = snapshot.val() || {};
-  return Object.entries(data).map(([id, product]: [string, any]) => ({
-    id,
-    ...product,
-  }));
+  return Object.entries(data).map(([id, product]: [string, any]) => {
+    // Convert price to number if it's a string
+    const cleanProduct: any = {
+      id,
+      ...product,
+      price: typeof product.price === 'string' ? parseFloat(product.price) || 0 : (product.price || 0),
+      basePrice: product.basePrice ? (typeof product.basePrice === 'string' ? parseFloat(product.basePrice) : product.basePrice) : undefined,
+    };
+    
+    // Convert variation prices to numbers
+    if (cleanProduct.variations && Array.isArray(cleanProduct.variations)) {
+      cleanProduct.variations = cleanProduct.variations.map((v: any) => ({
+        ...v,
+        price: typeof v.price === 'string' ? parseFloat(v.price) || 0 : (v.price || 0),
+      }));
+    }
+    
+    // Convert sizes prices to numbers
+    if (cleanProduct.sizes && typeof cleanProduct.sizes === 'object') {
+      const cleanSizes: Record<string, { name: string; price: number }> = {};
+      Object.entries(cleanProduct.sizes).forEach(([key, size]: [string, any]) => {
+        cleanSizes[key] = {
+          ...size,
+          price: typeof size.price === 'string' ? parseFloat(size.price) || 0 : (size.price || 0),
+        };
+      });
+      cleanProduct.sizes = cleanSizes;
+    }
+    
+    // Convert shishaTypes prices to numbers
+    if (cleanProduct.shishaTypes && typeof cleanProduct.shishaTypes === 'object') {
+      const cleanShishaTypes: Record<string, { name: string; price: number; icon?: string }> = {};
+      Object.entries(cleanProduct.shishaTypes).forEach(([key, type]: [string, any]) => {
+        cleanShishaTypes[key] = {
+          ...type,
+          price: typeof type.price === 'string' ? parseFloat(type.price) || 0 : (type.price || 0),
+        };
+      });
+      cleanProduct.shishaTypes = cleanShishaTypes;
+    }
+    
+    return cleanProduct;
+  });
 };
 
 export const getProduct = async (productId: string): Promise<Product | null> => {
   const snapshot = await get(ref(database, `${getPath('menu')}/${productId}`));
   if (!snapshot.exists()) return null;
-  return { id: productId, ...snapshot.val() };
+  const product = snapshot.val();
+  
+  // Convert price to number if it's a string
+  const cleanProduct: any = {
+    id: productId,
+    ...product,
+    price: typeof product.price === 'string' ? parseFloat(product.price) || 0 : (product.price || 0),
+    basePrice: product.basePrice ? (typeof product.basePrice === 'string' ? parseFloat(product.basePrice) : product.basePrice) : undefined,
+  };
+  
+  // Convert variation prices to numbers
+  if (cleanProduct.variations && Array.isArray(cleanProduct.variations)) {
+    cleanProduct.variations = cleanProduct.variations.map((v: any) => ({
+      ...v,
+      price: typeof v.price === 'string' ? parseFloat(v.price) || 0 : (v.price || 0),
+    }));
+  }
+  
+  // Convert sizes prices to numbers
+  if (cleanProduct.sizes && typeof cleanProduct.sizes === 'object') {
+    const cleanSizes: Record<string, { name: string; price: number }> = {};
+    Object.entries(cleanProduct.sizes).forEach(([key, size]: [string, any]) => {
+      cleanSizes[key] = {
+        ...size,
+        price: typeof size.price === 'string' ? parseFloat(size.price) || 0 : (size.price || 0),
+      };
+    });
+    cleanProduct.sizes = cleanSizes;
+  }
+  
+  // Convert shishaTypes prices to numbers
+  if (cleanProduct.shishaTypes && typeof cleanProduct.shishaTypes === 'object') {
+    const cleanShishaTypes: Record<string, { name: string; price: number; icon?: string }> = {};
+    Object.entries(cleanProduct.shishaTypes).forEach(([key, type]: [string, any]) => {
+      cleanShishaTypes[key] = {
+        ...type,
+        price: typeof type.price === 'string' ? parseFloat(type.price) || 0 : (type.price || 0),
+      };
+    });
+    cleanProduct.shishaTypes = cleanShishaTypes;
+  }
+  
+  return cleanProduct;
 };
 
 export const createProduct = async (product: Omit<Product, 'id'>): Promise<string> => {
   const newRef = push(ref(database, getPath('menu')));
   
-  // Remove undefined values (Firebase doesn't accept undefined)
+  // Remove undefined values and ensure numeric types for prices
   const cleanProduct: Record<string, any> = {};
   Object.entries(product).forEach(([key, value]) => {
     if (value !== undefined) {
-      cleanProduct[key] = value;
+      // Ensure price and basePrice are numbers
+      if (key === 'price' || key === 'basePrice') {
+        cleanProduct[key] = typeof value === 'string' ? parseFloat(value) || 0 : (value || 0);
+      } else if (key === 'variations' && Array.isArray(value)) {
+        // Ensure variation prices are numbers
+        cleanProduct[key] = value.map((v: any) => ({
+          ...v,
+          price: typeof v.price === 'string' ? parseFloat(v.price) || 0 : (v.price || 0),
+        }));
+      } else if (key === 'sizes' && typeof value === 'object') {
+        // Ensure sizes prices are numbers
+        const cleanSizes: Record<string, any> = {};
+        Object.entries(value).forEach(([sizeKey, size]: [string, any]) => {
+          cleanSizes[sizeKey] = {
+            ...size,
+            price: typeof size.price === 'string' ? parseFloat(size.price) || 0 : (size.price || 0),
+          };
+        });
+        cleanProduct[key] = cleanSizes;
+      } else if (key === 'shishaTypes' && typeof value === 'object') {
+        // Ensure shishaTypes prices are numbers
+        const cleanTypes: Record<string, any> = {};
+        Object.entries(value).forEach(([typeKey, type]: [string, any]) => {
+          cleanTypes[typeKey] = {
+            ...type,
+            price: typeof type.price === 'string' ? parseFloat(type.price) || 0 : (type.price || 0),
+          };
+        });
+        cleanProduct[key] = cleanTypes;
+      } else {
+        cleanProduct[key] = value;
+      }
     }
   });
   
@@ -244,9 +591,46 @@ export const createProduct = async (product: Omit<Product, 'id'>): Promise<strin
 
 export const updateProduct = async (productId: string, updates: Partial<Product>): Promise<void> => {
   const updateData: any = {
-    ...updates,
     updatedAt: new Date().toISOString(),
   };
+  
+  // Process updates and ensure numeric types for prices
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value !== undefined) {
+      // Ensure price and basePrice are numbers
+      if (key === 'price' || key === 'basePrice') {
+        updateData[key] = typeof value === 'string' ? parseFloat(value) || 0 : (value || 0);
+      } else if (key === 'variations' && Array.isArray(value)) {
+        // Ensure variation prices are numbers
+        updateData[key] = value.map((v: any) => ({
+          ...v,
+          price: typeof v.price === 'string' ? parseFloat(v.price) || 0 : (v.price || 0),
+        }));
+      } else if (key === 'sizes' && typeof value === 'object') {
+        // Ensure sizes prices are numbers
+        const cleanSizes: Record<string, any> = {};
+        Object.entries(value).forEach(([sizeKey, size]: [string, any]) => {
+          cleanSizes[sizeKey] = {
+            ...size,
+            price: typeof size.price === 'string' ? parseFloat(size.price) || 0 : (size.price || 0),
+          };
+        });
+        updateData[key] = cleanSizes;
+      } else if (key === 'shishaTypes' && typeof value === 'object') {
+        // Ensure shishaTypes prices are numbers
+        const cleanTypes: Record<string, any> = {};
+        Object.entries(value).forEach(([typeKey, type]: [string, any]) => {
+          cleanTypes[typeKey] = {
+            ...type,
+            price: typeof type.price === 'string' ? parseFloat(type.price) || 0 : (type.price || 0),
+          };
+        });
+        updateData[key] = cleanTypes;
+      } else {
+        updateData[key] = value;
+      }
+    }
+  });
   
   if (updates.categoryId) {
     updateData.category = updates.categoryId;
@@ -382,6 +766,35 @@ export const deleteWorker = async (workerId: string): Promise<void> => {
   await remove(ref(database, `${getPath('workers')}/${workerId}`));
 };
 
+// Worker Permission Management
+export const updateWorkerPermissions = async (
+  workerId: string, 
+  permissions: WorkerPermissions
+): Promise<void> => {
+  await update(ref(database, `${getPath('workers')}/${workerId}`), {
+    detailedPermissions: permissions,
+  });
+};
+
+export const getWorkerPermissions = async (workerId: string): Promise<WorkerPermissions> => {
+  const worker = await getWorker(workerId);
+  if (!worker) {
+    return getDefaultWorkerPermissions();
+  }
+  
+  // If detailed permissions exist, use them
+  if (worker.detailedPermissions) {
+    return worker.detailedPermissions;
+  }
+  
+  // Migrate from legacy permissions
+  if (worker.permissions === 'full') {
+    return getFullPermissions();
+  }
+  
+  return getDefaultWorkerPermissions();
+};
+
 // Restaurant
 export const getRestaurant = async (): Promise<Restaurant | null> => {
   const snapshot = await get(ref(database, `restaurant-system/restaurants/${RESTAURANT_ID}`));
@@ -402,12 +815,7 @@ export const getTodayOrders = async (): Promise<Order[]> => {
   });
 };
 
-export interface DateRange {
-  start: Date;
-  end: Date;
-}
-
-export const getDateRangeForFilter = (filter: 'today' | 'week' | 'month' | 'year' | 'custom', customStart?: string, customEnd?: string): DateRange => {
+export const getDateRangeForFilterLegacy = (filter: 'today' | 'week' | 'month' | 'year' | 'custom', customStart?: string, customEnd?: string): DateRange => {
   const now = new Date();
   let start: Date;
   let end: Date;
@@ -445,19 +853,11 @@ export const getDateRangeForFilter = (filter: 'today' | 'week' | 'month' | 'year
   return { start, end };
 };
 
-export const getOrdersByDateRange = async (dateRange: DateRange): Promise<Order[]> => {
-  const orders = await getOrders();
-  
-  return orders
-    .filter((order) => {
-      const orderTime = order.timestamp || (order.createdAt ? new Date(order.createdAt).getTime() : 0);
-      return orderTime >= dateRange.start.getTime() && orderTime <= dateRange.end.getTime();
-    })
-    .sort((a, b) => {
-      const timeA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-      const timeB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-      return timeB - timeA; // Newest first
-    });
+// Alias for backward compatibility
+export { getOrdersByDateRange as getOrdersByDateRangeNew };
+
+export const getOrdersByDateRangeLegacy = async (dateRange: DateRange): Promise<Order[]> => {
+  return getOrdersByDateRange(dateRange);
 };
 
 export const updateOrderPaymentStatus = async (orderId: string, paymentStatus: 'pending' | 'paid'): Promise<void> => {
@@ -533,22 +933,119 @@ export const listenToTables = (callback: (tables: Table[]) => void): () => void 
   return () => off(tablesRef, 'value', listener);
 };
 
+// Check if tableNumber is unique
+export const isTableNumberUnique = async (tableNumber: string, excludeTableId?: string): Promise<boolean> => {
+  const tables = await getTables();
+  return !tables.some(t => 
+    t.tableNumber === tableNumber && t.id !== excludeTableId
+  );
+};
+
+// Get table by table number (flexible matching)
+export const getTableByNumber = async (tableNumber: string): Promise<Table | null> => {
+  const tables = await getTables();
+  const searchNum = tableNumber.trim().toLowerCase();
+  
+  // Extract just the number from the input (e.g., "طاولة 5" -> "5", "Table 3" -> "3")
+  const extractNumber = (str: string): string => {
+    const match = str.match(/\d+/);
+    return match ? match[0] : str;
+  };
+  
+  const inputNum = extractNumber(searchNum);
+  
+  // Try exact match first
+  let table = tables.find(t => t.tableNumber === tableNumber);
+  if (table) return table;
+  
+  // Try matching just the number part
+  table = tables.find(t => {
+    const tableNum = extractNumber(t.tableNumber.toLowerCase());
+    return tableNum === inputNum;
+  });
+  if (table) return table;
+  
+  // Try case-insensitive contains match
+  table = tables.find(t => 
+    t.tableNumber.toLowerCase().includes(searchNum) || 
+    searchNum.includes(t.tableNumber.toLowerCase())
+  );
+  
+  return table || null;
+};
+
 export const createTable = async (table: Omit<Table, 'id'>): Promise<string> => {
-  const newRef = push(ref(database, getPath('tables')));
-  await set(newRef, {
-    ...table,
+  // Check for duplicate tableNumber
+  const isUnique = await isTableNumberUnique(table.tableNumber);
+  if (!isUnique) {
+    throw new Error(`رقم الطاولة "${table.tableNumber}" موجود مسبقاً`);
+  }
+
+  // Remove undefined values to prevent Firebase errors
+  const tableData: any = {
+    tableNumber: table.tableNumber,
+    area: table.area,
     status: table.status || 'available',
+    activeOrderId: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  });
+  };
+
+  // Only include name if it's provided and not empty
+  if (table.name && table.name.trim()) {
+    tableData.name = table.name.trim();
+  }
+
+  const newRef = push(ref(database, getPath('tables')));
+  await set(newRef, tableData);
   return newRef.key!;
 };
 
 export const updateTable = async (tableId: string, updates: Partial<Table>): Promise<void> => {
-  await update(ref(database, `${getPath('tables')}/${tableId}`), {
-    ...updates,
+  // If tableNumber is being updated, check for uniqueness
+  if (updates.tableNumber) {
+    const isUnique = await isTableNumberUnique(updates.tableNumber, tableId);
+    if (!isUnique) {
+      throw new Error(`رقم الطاولة "${updates.tableNumber}" موجود مسبقاً`);
+    }
+  }
+
+  // Remove undefined values to prevent Firebase errors
+  const updateData: any = {
     updatedAt: new Date().toISOString(),
-  });
+  };
+
+  // Only include defined values
+  if (updates.tableNumber !== undefined) {
+    updateData.tableNumber = updates.tableNumber;
+  }
+  if (updates.area !== undefined) {
+    updateData.area = updates.area;
+  }
+  if (updates.status !== undefined) {
+    updateData.status = updates.status;
+  }
+  if (updates.activeOrderId !== undefined) {
+    updateData.activeOrderId = updates.activeOrderId;
+  }
+  if (updates.reservedBy !== undefined) {
+    updateData.reservedBy = updates.reservedBy;
+  }
+  if (updates.reservedAt !== undefined) {
+    updateData.reservedAt = updates.reservedAt;
+  }
+  // For name: if it's an empty string or undefined, we can either omit it or set it to null
+  // If we want to clear the name, we should explicitly set it to null
+  if (updates.name !== undefined) {
+    if (updates.name && updates.name.trim()) {
+      updateData.name = updates.name.trim();
+    } else {
+      // If name is empty, we can remove it by setting to null (Firebase will remove the field)
+      updateData.name = null;
+    }
+  }
+
+  await update(ref(database, `${getPath('tables')}/${tableId}`), updateData);
 };
 
 export const deleteTable = async (tableId: string): Promise<void> => {
@@ -561,17 +1058,17 @@ export const setTableStatus = async (
   activeOrderId?: string | null,
   reservedBy?: string
 ): Promise<void> => {
-  const updates: Partial<Table> = {
+  const updates: Record<string, any> = {
     status,
     updatedAt: new Date().toISOString(),
   };
   
   if (status === 'available') {
     updates.activeOrderId = null;
-    updates.reservedBy = undefined;
-    updates.reservedAt = undefined;
+    updates.reservedBy = null;
+    updates.reservedAt = null;
   } else if (status === 'reserved') {
-    updates.reservedBy = reservedBy;
+    updates.reservedBy = reservedBy || null;
     updates.reservedAt = new Date().toISOString();
   } else if (status === 'occupied' && activeOrderId) {
     updates.activeOrderId = activeOrderId;
@@ -646,21 +1143,41 @@ export const listenToRooms = (callback: (rooms: Room[]) => void): () => void => 
 
 export const createRoom = async (room: Omit<Room, 'id'>): Promise<string> => {
   const newRef = push(ref(database, getPath('rooms')));
-  await set(newRef, {
-    ...room,
+  
+  // Build clean data object, excluding undefined values (Firebase doesn't accept undefined)
+  const cleanData: Record<string, unknown> = {
+    roomNumber: room.roomNumber,
     status: room.status || 'available',
     isActive: room.isActive ?? true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  });
+  };
+  
+  // Only add optional fields if they have values
+  if (room.name) cleanData.name = room.name;
+  if (room.notes) cleanData.notes = room.notes;
+  if (room.hourlyRate !== undefined && room.hourlyRate > 0) cleanData.hourlyRate = room.hourlyRate;
+  if (room.priceType) cleanData.priceType = room.priceType;
+  if (room.malePrice !== undefined) cleanData.malePrice = room.malePrice;
+  if (room.femalePrice !== undefined) cleanData.femalePrice = room.femalePrice;
+  
+  await set(newRef, cleanData);
   return newRef.key!;
 };
 
 export const updateRoom = async (roomId: string, updates: Partial<Room>): Promise<void> => {
-  await update(ref(database, `${getPath('rooms')}/${roomId}`), {
-    ...updates,
+  // Filter out undefined values (Firebase doesn't accept undefined)
+  const cleanUpdates: Record<string, unknown> = {
     updatedAt: new Date().toISOString(),
+  };
+  
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value !== undefined) {
+      cleanUpdates[key] = value;
+    }
   });
+  
+  await update(ref(database, `${getPath('rooms')}/${roomId}`), cleanUpdates);
 };
 
 export const deleteRoom = async (roomId: string): Promise<void> => {
@@ -673,17 +1190,17 @@ export const setRoomStatus = async (
   activeOrderId?: string | null,
   reservedBy?: string
 ): Promise<void> => {
-  const updates: Partial<Room> = {
+  const updates: Record<string, any> = {
     status,
     updatedAt: new Date().toISOString(),
   };
   
   if (status === 'available') {
     updates.activeOrderId = null;
-    updates.reservedBy = undefined;
-    updates.reservedAt = undefined;
+    updates.reservedBy = null;
+    updates.reservedAt = null;
   } else if (status === 'reserved') {
-    updates.reservedBy = reservedBy;
+    updates.reservedBy = reservedBy || null;
     updates.reservedAt = new Date().toISOString();
   } else if (status === 'occupied' && activeOrderId) {
     updates.activeOrderId = activeOrderId;

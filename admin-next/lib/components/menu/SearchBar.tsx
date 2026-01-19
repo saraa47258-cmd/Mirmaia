@@ -66,3 +66,7 @@ export default function SearchBar({ value, onChange, placeholder = 'ابحث...'
   );
 }
 
+
+
+
+

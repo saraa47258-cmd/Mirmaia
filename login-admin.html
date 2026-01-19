@@ -254,7 +254,10 @@
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="js/firebase-config.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/auth.js"></script>
     <script>
         // بيانات الأدمن التجريبية
         const DEMO_ADMIN = {
@@ -266,11 +269,12 @@
         };
 
         // تهيئة البيانات التجريبية
-        function initializeDemoData() {
-            const adminRef = firebase.database().ref(`restaurant-system/admins/${DEMO_ADMIN.restaurantId}`);
-            adminRef.once('value', (snapshot) => {
+        async function initializeDemoData() {
+            try {
+                const adminRef = firebase.database().ref(`restaurant-system/admins/${DEMO_ADMIN.restaurantId}`);
+                const snapshot = await adminRef.once('value');
                 if (!snapshot.exists()) {
-                    adminRef.set({
+                    await adminRef.set({
                         username: DEMO_ADMIN.username,
                         password: DEMO_ADMIN.password,
                         name: DEMO_ADMIN.name,
@@ -278,7 +282,9 @@
                         createdAt: firebase.database.ServerValue.TIMESTAMP
                     });
                 }
-            });
+            } catch (error) {
+                ErrorHandler.handleFirebaseError(error, 'تهيئة بيانات الأدمن');
+            }
         }
 
         // عرض رسالة خطأ
@@ -306,25 +312,28 @@
             
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            
+            // تعطيل الزر أثناء المعالجة
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تسجيل الدخول...';
 
             if (!username || !password) {
                 showError('يرجى إدخال اسم المستخدم وكلمة المرور');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> تسجيل الدخول';
                 return;
             }
 
             try {
-                const adminRef = firebase.database().ref(`restaurant-system/admins/${DEMO_ADMIN.restaurantId}`);
-                const snapshot = await adminRef.once('value');
-                const adminData = snapshot.val();
+                // استخدام نظام المصادقة الجديد
+                const result = await ErrorHandler.safeExecute(
+                    Auth.loginAdmin(username, password),
+                    'تسجيل دخول الأدمن',
+                    true
+                );
 
-                if (adminData && adminData.username === username && adminData.password === password) {
-                    // حفظ بيانات الجلسة
-                    localStorage.setItem('admin_logged_in', 'true');
-                    localStorage.setItem('admin_username', adminData.username);
-                    localStorage.setItem('admin_name', adminData.name);
-                    localStorage.setItem('admin_role', adminData.role);
-                    localStorage.setItem('restaurant_id', DEMO_ADMIN.restaurantId);
-
+                if (result && result.success) {
                     showSuccess('تم تسجيل الدخول بنجاح! جاري التوجيه...');
                     
                     setTimeout(() => {
@@ -332,10 +341,14 @@
                     }, 1000);
                 } else {
                     showError('اسم المستخدم أو كلمة المرور غير صحيحة');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> تسجيل الدخول';
                 }
             } catch (error) {
-                console.error('خطأ في تسجيل الدخول:', error);
-                showError('حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.');
+                ErrorHandler.handleError(error, 'تسجيل دخول الأدمن', 'error');
+                showError(error.message || 'حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> تسجيل الدخول';
             }
         });
 
@@ -343,9 +356,16 @@
         initializeDemoData();
 
         // التحقق من تسجيل الدخول المسبق
-        if (localStorage.getItem('admin_logged_in') === 'true') {
-            window.location.href = 'index.html';
-        }
+        (async () => {
+            try {
+                const authCheck = await Auth.checkAuth();
+                if (authCheck.isAuthenticated && authCheck.user && authCheck.user.role === 'admin') {
+                    window.location.href = 'index.html';
+                }
+            } catch (error) {
+                // تجاهل الأخطاء في التحقق الأولي
+            }
+        })();
     </script>
 </body>
 </html>

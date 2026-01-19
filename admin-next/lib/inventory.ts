@@ -432,3 +432,7 @@ export const ADJUSTMENT_REASONS = [
   { id: 'other', label: 'سبب آخر' },
 ];
 
+
+
+
+

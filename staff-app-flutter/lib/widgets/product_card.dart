@@ -4,14 +4,14 @@ import '../models/product_model.dart';
 import '../theme/app_theme.dart';
 
 class ProductCard extends StatefulWidget {
-  final ProductModel product;
-  final VoidCallback onAdd;
-
   const ProductCard({
     super.key,
     required this.product,
     required this.onAdd,
   });
+  
+  final ProductModel product;
+  final VoidCallback onAdd;
 
   @override
   State<ProductCard> createState() => _ProductCardState();
@@ -20,9 +20,21 @@ class ProductCard extends StatefulWidget {
 class _ProductCardState extends State<ProductCard> {
   bool _isHovered = false;
 
+  String _getProductEmoji(ProductModel product) {
+    final category = product.categoryId.toLowerCase();
+    if (category.contains('coffee')) return '☕';
+    if (category.contains('tea')) return '🍵';
+    if (category.contains('cold')) return '🧊';
+    if (category.contains('dessert')) return '🍰';
+    if (category.contains('snack')) return '🥪';
+    if (category.contains('shisha')) return '💨';
+    return '🍽️';
+  }
+
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
+    final emoji = _getProductEmoji(product);
     
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -54,9 +66,9 @@ class _ProductCardState extends State<ProductCard> {
               child: Stack(
                 children: [
                   Container(
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppTheme.lightBackground,
-                      borderRadius: const BorderRadius.vertical(
+                      borderRadius: BorderRadius.vertical(
                         top: Radius.circular(15),
                       ),
                     ),
@@ -73,27 +85,27 @@ class _ProductCardState extends State<ProductCard> {
                                 height: double.infinity,
                                 placeholder: (context, url) => Center(
                                   child: Text(
-                                    product.emoji ?? '☕',
+                                    emoji,
                                     style: const TextStyle(fontSize: 40),
                                   ),
                                 ),
                                 errorWidget: (context, url, error) => Center(
                                   child: Text(
-                                    product.emoji ?? '☕',
+                                    emoji,
                                     style: const TextStyle(fontSize: 40),
                                   ),
                                 ),
                               ),
                             )
                           : Text(
-                              product.emoji ?? '☕',
+                              emoji,
                               style: const TextStyle(fontSize: 40),
                             ),
                     ),
                   ),
                   
                   // Variations Badge
-                  if (product.hasVariations)
+                  if (product.hasVariants)
                     Positioned(
                       top: 8,
                       right: 8,
@@ -141,7 +153,7 @@ class _ProductCardState extends State<ProductCard> {
                   children: [
                     // Name
                     Text(
-                      product.name,
+                      product.nameAr,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -155,7 +167,7 @@ class _ProductCardState extends State<ProductCard> {
                     // Price
                     Row(
                       children: [
-                        if (product.hasVariations)
+                        if (product.hasVariants)
                           Text(
                             'يبدأ من ',
                             style: TextStyle(
@@ -164,7 +176,7 @@ class _ProductCardState extends State<ProductCard> {
                             ),
                           ),
                         Text(
-                          '${product.minPrice.toStringAsFixed(3)} ر.ع',
+                          '${product.price.toStringAsFixed(2)} ر.س',
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -182,7 +194,7 @@ class _ProductCardState extends State<ProductCard> {
                       child: ElevatedButton(
                         onPressed: widget.onAdd,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: product.hasVariations
+                          backgroundColor: product.hasVariants
                               ? AppTheme.secondaryColor
                               : AppTheme.primaryColor,
                           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -194,12 +206,12 @@ class _ProductCardState extends State<ProductCard> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              product.hasVariations ? Icons.layers : Icons.add,
+                              product.hasVariants ? Icons.layers : Icons.add,
                               size: 16,
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              product.hasVariations ? 'اختر' : 'إضافة',
+                              product.hasVariants ? 'اختر' : 'إضافة',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -219,4 +231,3 @@ class _ProductCardState extends State<ProductCard> {
     );
   }
 }
-

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class LoadingWidget extends StatelessWidget {
-  final String? message;
   
   const LoadingWidget({super.key, this.message});
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -37,9 +37,6 @@ class LoadingWidget extends StatelessWidget {
 }
 
 class LoadingOverlay extends StatelessWidget {
-  final Widget child;
-  final bool isLoading;
-  final String? message;
 
   const LoadingOverlay({
     super.key,
@@ -47,6 +44,9 @@ class LoadingOverlay extends StatelessWidget {
     required this.isLoading,
     this.message,
   });
+  final Widget child;
+  final bool isLoading;
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -62,4 +62,8 @@ class LoadingOverlay extends StatelessWidget {
     );
   }
 }
+
+
+
+
 

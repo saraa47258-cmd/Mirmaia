@@ -219,3 +219,7 @@ export default function InventoryKPIs({ stats, loading }: InventoryKPIsProps) {
   );
 }
 
+
+
+
+

@@ -2,7 +2,7 @@
 
 import { CartItem } from '@/lib/pos';
 import { Plus, Minus, Trash2, ShoppingCart, FileText, Edit2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface CartPanelProps {
   items: CartItem[];
@@ -11,6 +11,8 @@ interface CartPanelProps {
   onUpdateNote: (itemId: string, note: string) => void;
   onClearCart: () => void;
 }
+
+type ScreenSize = 'mobile' | 'tablet' | 'desktop';
 
 export default function CartPanel({ 
   items, 
@@ -21,6 +23,26 @@ export default function CartPanel({
 }: CartPanelProps) {
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [tempNote, setTempNote] = useState('');
+  const [screenSize, setScreenSize] = useState<ScreenSize>('desktop');
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize('mobile');
+      } else if (width < 1024) {
+        setScreenSize('tablet');
+      } else {
+        setScreenSize('desktop');
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = screenSize === 'mobile';
 
   const handleEditNote = (item: CartItem) => {
     setEditingNote(item.id);
@@ -39,24 +61,25 @@ export default function CartPanel({
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100%',
+      height: isMobile ? 'auto' : '100%',
+      minHeight: isMobile ? 'calc(100vh - 200px)' : undefined,
       backgroundColor: '#ffffff',
-      borderRadius: '16px',
+      borderRadius: isMobile ? '12px' : '16px',
       overflow: 'hidden',
       border: '1px solid #e2e8f0',
     }}>
       {/* Header */}
       <div style={{
-        padding: '16px 20px',
+        padding: isMobile ? '12px 14px' : '16px 20px',
         borderBottom: '1px solid #e2e8f0',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: '#f8fafc',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <ShoppingCart style={{ width: '20px', height: '20px', color: '#6366f1' }} />
-          <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '10px' }}>
+          <ShoppingCart style={{ width: isMobile ? '18px' : '20px', height: isMobile ? '18px' : '20px', color: '#6366f1' }} />
+          <h2 style={{ fontSize: isMobile ? '14px' : '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
             السلة
           </h2>
           {totalItems > 0 && (
@@ -64,7 +87,7 @@ export default function CartPanel({
               padding: '2px 10px',
               backgroundColor: '#6366f1',
               borderRadius: '20px',
-              fontSize: '12px',
+              fontSize: isMobile ? '11px' : '12px',
               fontWeight: 700,
               color: '#ffffff',
             }}>
@@ -79,17 +102,17 @@ export default function CartPanel({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 12px',
+              padding: isMobile ? '5px 10px' : '6px 12px',
               backgroundColor: '#fee2e2',
               border: 'none',
               borderRadius: '8px',
-              fontSize: '12px',
+              fontSize: isMobile ? '11px' : '12px',
               fontWeight: 600,
               color: '#dc2626',
               cursor: 'pointer',
             }}
           >
-            <Trash2 style={{ width: '14px', height: '14px' }} />
+            <Trash2 style={{ width: isMobile ? '12px' : '14px', height: isMobile ? '12px' : '14px' }} />
             مسح
           </button>
         )}
@@ -99,7 +122,7 @@ export default function CartPanel({
       <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: items.length === 0 ? '40px 20px' : '12px',
+        padding: items.length === 0 ? (isMobile ? '24px 12px' : '40px 20px') : (isMobile ? '10px' : '12px'),
       }}>
         {items.length === 0 ? (
           <div style={{
@@ -371,4 +394,8 @@ export default function CartPanel({
     </div>
   );
 }
+
+
+
+
 

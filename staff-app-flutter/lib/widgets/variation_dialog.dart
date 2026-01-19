@@ -3,28 +3,31 @@ import '../models/product_model.dart';
 import '../theme/app_theme.dart';
 
 class VariationDialog extends StatefulWidget {
-  final ProductModel product;
-  final Function(ProductVariation variation, String? notes) onAdd;
-
   const VariationDialog({
     super.key,
     required this.product,
     required this.onAdd,
   });
+  
+  final ProductModel product;
+  final Function(ProductVariant variation, String? notes) onAdd;
 
   @override
   State<VariationDialog> createState() => _VariationDialogState();
 }
 
 class _VariationDialogState extends State<VariationDialog> {
-  late ProductVariation? _selectedVariation;
+  ProductVariant? _selectedVariation;
   final TextEditingController _notesController = TextEditingController();
   bool _showNotes = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedVariation = widget.product.defaultVariation;
+    // Select first variant by default
+    if (widget.product.variants.isNotEmpty) {
+      _selectedVariation = widget.product.variants.first;
+    }
   }
 
   @override
@@ -33,9 +36,14 @@ class _VariationDialogState extends State<VariationDialog> {
     super.dispose();
   }
 
+  double get _selectedPrice {
+    if (_selectedVariation == null) return widget.product.price;
+    return widget.product.price + _selectedVariation!.priceModifier;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final variations = widget.product.variations;
+    final variations = widget.product.variants;
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -73,12 +81,10 @@ class _VariationDialogState extends State<VariationDialog> {
                                 fit: BoxFit.cover,
                                 width: 56,
                                 height: 56,
+                                errorBuilder: (_, __, ___) => const Text('☕', style: TextStyle(fontSize: 28)),
                               ),
                             )
-                          : Text(
-                              widget.product.emoji ?? '☕',
-                              style: const TextStyle(fontSize: 28),
-                            ),
+                          : const Text('☕', style: TextStyle(fontSize: 28)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -89,7 +95,7 @@ class _VariationDialogState extends State<VariationDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.product.name,
+                          widget.product.nameAr,
                           style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
@@ -136,6 +142,7 @@ class _VariationDialogState extends State<VariationDialog> {
               child: Column(
                 children: variations.map((variation) {
                   final isSelected = _selectedVariation?.id == variation.id;
+                  final price = widget.product.price + variation.priceModifier;
                   
                   return GestureDetector(
                     onTap: () => setState(() => _selectedVariation = variation),
@@ -187,47 +194,48 @@ class _VariationDialogState extends State<VariationDialog> {
                           
                           // Variation Name
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  variation.name,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: isSelected
-                                        ? AppTheme.primaryColor
-                                        : AppTheme.lightText,
-                                  ),
-                                ),
-                                if (variation.isDefault)
-                                  Container(
-                                    margin: const EdgeInsets.only(top: 4),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      'الافتراضي',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                            child: Text(
+                              variation.nameAr,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? AppTheme.primaryColor
+                                    : AppTheme.lightText,
+                              ),
                             ),
                           ),
                           
+                          // Price modifier
+                          if (variation.priceModifier != 0)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: variation.priceModifier > 0 
+                                    ? Colors.orange.withOpacity(0.1)
+                                    : Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                variation.priceModifier > 0
+                                    ? '+${variation.priceModifier.toStringAsFixed(0)}'
+                                    : variation.priceModifier.toStringAsFixed(0),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: variation.priceModifier > 0 
+                                      ? Colors.orange
+                                      : Colors.green,
+                                ),
+                              ),
+                            ),
+                          
                           // Price
                           Text(
-                            '${variation.price.toStringAsFixed(3)} ر.ع',
+                            '${price.toStringAsFixed(2)} ر.س',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -323,9 +331,9 @@ class _VariationDialogState extends State<VariationDialog> {
             // Summary & Add Button
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppTheme.lightBackground,
-                borderRadius: const BorderRadius.vertical(
+                borderRadius: BorderRadius.vertical(
                   bottom: Radius.circular(20),
                 ),
               ),
@@ -354,7 +362,7 @@ class _VariationDialogState extends State<VariationDialog> {
                                 ),
                               ),
                               Text(
-                                '${widget.product.name} - ${_selectedVariation!.name}',
+                                '${widget.product.nameAr} - ${_selectedVariation!.nameAr}',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -364,7 +372,7 @@ class _VariationDialogState extends State<VariationDialog> {
                             ],
                           ),
                           Text(
-                            '${_selectedVariation!.price.toStringAsFixed(3)} ر.ع',
+                            '${_selectedPrice.toStringAsFixed(2)} ر.س',
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
@@ -422,4 +430,3 @@ class _VariationDialogState extends State<VariationDialog> {
     );
   }
 }
-

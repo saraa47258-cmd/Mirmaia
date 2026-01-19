@@ -236,10 +236,6 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _ModuleCard extends StatefulWidget {
-  final String name;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
 
   const _ModuleCard({
     required this.name,
@@ -247,6 +243,10 @@ class _ModuleCard extends StatefulWidget {
     required this.color,
     required this.onTap,
   });
+  final String name;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
 
   @override
   State<_ModuleCard> createState() => _ModuleCardState();
@@ -313,4 +313,8 @@ class _ModuleCardState extends State<_ModuleCard> {
     );
   }
 }
+
+
+
+
 

@@ -22,7 +22,8 @@ export default function LoginPage() {
 
     try {
       await loginAdmin(username, password);
-      router.push('/admin');
+      // Use full page reload to ensure AuthContext is refreshed
+      window.location.href = '/admin';
     } catch (err: any) {
       setError(err.message || 'حدث خطأ في تسجيل الدخول');
     } finally {

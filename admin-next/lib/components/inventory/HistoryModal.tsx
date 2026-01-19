@@ -394,3 +394,7 @@ export default function HistoryModal({ product, onClose }: HistoryModalProps) {
   );
 }
 
+
+
+
+

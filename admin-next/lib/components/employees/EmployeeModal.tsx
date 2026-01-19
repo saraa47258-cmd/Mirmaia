@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Employee, EmployeeRole, ROLE_CONFIG, CreateEmployeeData } from '@/lib/employees';
+import { Employee, EmployeeRole, ROLE_CONFIG, PERMISSION_LABELS, CreateEmployeeData } from '@/lib/employees';
 import { X, User, Lock, Shield, Phone, Briefcase, Eye, EyeOff } from 'lucide-react';
 
 interface EmployeeModalProps {
@@ -400,6 +400,30 @@ export default function EmployeeModal({
                       <p style={{ fontSize: '12px', color: '#64748b' }}>
                         {config.description}
                       </p>
+                      {/* Show permissions when selected */}
+                      {role === value && (
+                        <div style={{ 
+                          marginTop: '8px', 
+                          display: 'flex', 
+                          flexWrap: 'wrap', 
+                          gap: '4px' 
+                        }}>
+                          {config.permissions.map((perm) => (
+                            <span
+                              key={perm}
+                              style={{
+                                padding: '2px 6px',
+                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                color: '#6366f1',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                              }}
+                            >
+                              {PERMISSION_LABELS[perm] || perm}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     {role === value && (
                       <div style={{
@@ -533,4 +557,8 @@ export default function EmployeeModal({
     </>
   );
 }
+
+
+
+
 

@@ -48,6 +48,23 @@ export interface UpdateEmployeeData {
   position?: string;
 }
 
+// Permission labels for display
+export const PERMISSION_LABELS: Record<string, string> = {
+  'dashboard': 'لوحة التحكم',
+  'staff-menu': 'منيو الموظفين',
+  'cashier': 'الكاشير',
+  'orders': 'الطلبات',
+  'tables': 'الطاولات',
+  'rooms': 'الغرف',
+  'room-orders': 'طلبات الغرف',
+  'products': 'المنتجات',
+  'menu': 'المنيو',
+  'inventory': 'المخزن',
+  'workers': 'إدارة الموظفين',
+  'reports': 'التقارير',
+  'all': 'صلاحيات كاملة',
+};
+
 // Role labels and colors
 export const ROLE_CONFIG: Record<EmployeeRole, { 
   label: string; 
@@ -61,20 +78,20 @@ export const ROLE_CONFIG: Record<EmployeeRole, {
     color: '#dc2626',
     bgColor: 'rgba(220, 38, 38, 0.1)',
     description: 'صلاحيات كاملة للنظام',
-    permissions: ['all'],
+    permissions: ['dashboard', 'staff-menu', 'cashier', 'orders', 'tables', 'rooms', 'room-orders', 'products', 'menu', 'inventory', 'workers', 'reports'],
   },
   cashier: {
     label: 'كاشير',
     color: '#6366f1',
     bgColor: 'rgba(99, 102, 241, 0.1)',
-    description: 'الوصول إلى الكاشير ونقطة البيع',
-    permissions: ['cashier', 'orders', 'tables', 'rooms'],
+    description: 'الكاشير، الطلبات، الطاولات، الغرف',
+    permissions: ['staff-menu', 'cashier', 'orders', 'tables', 'rooms', 'room-orders'],
   },
   staff: {
     label: 'موظف',
     color: '#22c55e',
     bgColor: 'rgba(34, 197, 94, 0.1)',
-    description: 'الوصول إلى منيو الموظفين فقط',
+    description: 'منيو الموظفين والطلبات فقط',
     permissions: ['staff-menu', 'orders'],
   },
 };

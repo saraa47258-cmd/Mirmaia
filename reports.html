@@ -661,8 +661,8 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyBD3RarLj_696emYW84zZ1tliP_Th1z6mM",
@@ -742,6 +742,8 @@
 
         async function loadData() {
             try {
+                console.log('🔄 جاري تحميل البيانات...');
+                
                 // Load menu items
                 const menuSnapshot = await firebase.database().ref(MENU_PATH).once('value');
                 if (menuSnapshot.exists()) {
@@ -749,6 +751,7 @@
                         menuItems[child.key] = child.val();
                     });
                 }
+                console.log('✅ تم تحميل المنتجات:', Object.keys(menuItems).length);
 
                 // Load categories
                 const catSnapshot = await firebase.database().ref(CATEGORIES_PATH).once('value');
@@ -757,35 +760,130 @@
                         categories[child.key] = child.val();
                     });
                 }
+                console.log('✅ تم تحميل الفئات:', Object.keys(categories).length);
 
-                // Load orders
-                const ordersSnapshot = await firebase.database().ref(ORDERS_PATH).once('value');
                 allOrders = [];
+                
+                // Load current orders
+                const ordersSnapshot = await firebase.database().ref(ORDERS_PATH).once('value');
                 if (ordersSnapshot.exists()) {
                     ordersSnapshot.forEach(child => {
-                        allOrders.push({ id: child.key, ...child.val() });
+                        allOrders.push({ id: child.key, ...child.val(), source: 'current' });
                     });
                 }
+                console.log('✅ تم تحميل الطلبات الحالية:', ordersSnapshot.val() ? Object.keys(ordersSnapshot.val()).length : 0);
 
+                // Load cancelled orders
+                const cancelledSnapshot = await firebase.database().ref(`${ORDERS_PATH.replace('/orders', '/cancelled-orders')}`).once('value');
+                if (cancelledSnapshot.exists()) {
+                    cancelledSnapshot.forEach(child => {
+                        allOrders.push({ id: child.key, ...child.val(), source: 'cancelled' });
+                    });
+                }
+                console.log('✅ تم تحميل الطلبات الملغاة:', cancelledSnapshot.val() ? Object.keys(cancelledSnapshot.val()).length : 0);
+
+                // Load daily closings (التقارير اليومية)
+                const closingsPath = ORDERS_PATH.replace('/orders', '/daily-closings');
+                const closingsSnapshot = await firebase.database().ref(closingsPath).once('value');
+                if (closingsSnapshot.exists()) {
+                    closingsSnapshot.forEach(reportChild => {
+                        const report = reportChild.val();
+                        // إذا كان التقرير يحتوي على قائمة الطلبات، أضفها
+                        if (report.orders && Array.isArray(report.orders)) {
+                            report.orders.forEach(order => {
+                                // تحقق من عدم تكرار الطلب
+                                if (!allOrders.find(o => o.id === order.id)) {
+                                    allOrders.push({ ...order, source: 'daily-closing' });
+                                }
+                            });
+                        }
+                    });
+                }
+                console.log('✅ تم تحميل التقارير اليومية (daily-closings)');
+                
+                // Load daily reports from worker-app (للتوافق مع النسخ القديمة)
+                const reportsPath = ORDERS_PATH.replace('/orders', '/daily-reports');
+                const reportsSnapshot = await firebase.database().ref(reportsPath).once('value');
+                if (reportsSnapshot.exists()) {
+                    reportsSnapshot.forEach(reportChild => {
+                        const report = reportChild.val();
+                        // إذا كان التقرير يحتوي على قائمة الطلبات، أضفها
+                        if (report.orders && Array.isArray(report.orders)) {
+                            report.orders.forEach(order => {
+                                // تحقق من عدم تكرار الطلب
+                                if (!allOrders.find(o => o.id === order.id)) {
+                                    allOrders.push({ ...order, source: 'daily-report' });
+                                }
+                            });
+                        }
+                    });
+                }
+                console.log('✅ تم تحميل التقارير اليومية (daily-reports)');
+
+                // Load cancelled closings (backup reports)
+                const cancelledClosingsPath = ORDERS_PATH.replace('/orders', '/cancelled-closings');
+                const cancelledClosingsSnapshot = await firebase.database().ref(cancelledClosingsPath).once('value');
+                if (cancelledClosingsSnapshot.exists()) {
+                    cancelledClosingsSnapshot.forEach(reportChild => {
+                        const report = reportChild.val();
+                        if (report.orders && Array.isArray(report.orders)) {
+                            report.orders.forEach(order => {
+                                if (!allOrders.find(o => o.id === order.id)) {
+                                    allOrders.push({ ...order, source: 'cancelled-closing' });
+                                }
+                            });
+                        }
+                    });
+                }
+                console.log('✅ تم تحميل الإغلاقات الملغاة');
+                
+                console.log('📊 إجمالي الطلبات المحملة:', allOrders.length);
                 loadReports();
             } catch (error) {
-                console.error('Error loading data:', error);
-                showToast('خطأ في تحميل البيانات', 'error');
+                console.error('❌ خطأ في تحميل البيانات:', error);
+                showToast('خطأ في تحميل البيانات: ' + error.message, 'error');
             }
         }
 
         function loadReports() {
+            console.log('🔄 جاري تحميل التقارير...');
+            console.log('📅 عدد الطلبات الكلي:', allOrders.length);
+            
             const fromDate = new Date(document.getElementById('date-from').value);
             fromDate.setHours(0, 0, 0, 0);
             
             const toDate = new Date(document.getElementById('date-to').value);
             toDate.setHours(23, 59, 59, 999);
 
+            console.log('📆 من:', fromDate.toLocaleDateString('ar-SA'));
+            console.log('📆 إلى:', toDate.toLocaleDateString('ar-SA'));
+
             // Filter orders by date
             filteredOrders = allOrders.filter(order => {
                 const orderDate = new Date(order.createdAt || order.timestamp);
                 return orderDate >= fromDate && orderDate <= toDate;
             });
+
+            console.log('📊 الطلبات المفلترة:', filteredOrders.length);
+            
+            if (filteredOrders.length === 0) {
+                console.warn('⚠️ لا توجد طلبات في هذه الفترة!');
+                console.table(allOrders.map(o => ({
+                    id: o.id,
+                    date: o.createdAt || o.timestamp,
+                    total: o.total,
+                    status: o.status,
+                    source: o.source
+                })));
+            } else {
+                console.log('✅ تم العثور على طلبات:');
+                console.table(filteredOrders.slice(0, 5).map(o => ({
+                    id: o.id,
+                    date: o.createdAt || o.timestamp,
+                    total: o.total,
+                    status: o.status
+                })));
+            }
 
             // Calculate statistics
             calculateStats();
@@ -798,9 +896,15 @@
         }
 
         function calculateStats() {
+            console.log('📈 حساب الإحصائيات...');
+            console.log('عدد الطلبات المفلترة:', filteredOrders.length);
+            
             // Total revenue (only paid orders)
             const paidOrders = filteredOrders.filter(o => o.status === 'paid' || o.status === 'completed');
+            console.log('الطلبات المدفوعة:', paidOrders.length);
+            
             const totalRevenue = paidOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
+            console.log('إجمالي الإيرادات:', totalRevenue);
             
             // Total orders
             const totalOrders = filteredOrders.length;
@@ -814,15 +918,19 @@
                     });
                 }
             });
+            console.log('إجمالي المنتجات:', totalProducts);
             
             // Average order value
             const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+            console.log('متوسط قيمة الطلب:', avgOrder);
 
             // Update UI
+            console.log('🎨 تحديث الواجهة...');
             document.getElementById('total-revenue').textContent = totalRevenue.toFixed(3);
             document.getElementById('total-orders').textContent = totalOrders;
             document.getElementById('total-products').textContent = totalProducts;
             document.getElementById('avg-order').textContent = avgOrder.toFixed(3);
+            console.log('✅ تم تحديث الإحصائيات بنجاح');
 
             // Calculate product stats
             calculateProductStats();
