@@ -11,6 +11,10 @@ on:
   # Allow manual trigger
   workflow_dispatch:
 
+# Required permissions for pushing to repository
+permissions:
+  contents: write
+
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -18,16 +22,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Create backup directory
-        run: mkdir -p firebase-backups
       
       - name: Backup Firebase Data
         run: |
@@ -39,41 +33,52 @@ jobs:
           
           mkdir -p "$BACKUP_DIR"
           
-          echo "📅 Backup started at: $(date)"
-          echo "📁 Backup folder: $BACKUP_DIR"
+          echo "========================================"
+          echo "  Firebase Backup - Sham Coffee"
+          echo "========================================"
+          echo ""
+          echo "Backup started at: $(date)"
+          echo "Backup folder: $BACKUP_DIR"
           echo ""
           
           # Collections to backup
-          COLLECTIONS=("orders" "menu" "categories" "workers" "tables" "rooms" "daily_closings" "invoices")
+          COLLECTIONS="orders menu categories workers tables rooms daily_closings invoices"
           
-          for collection in "${COLLECTIONS[@]}"; do
-            echo "📦 Backing up $collection..."
-            curl -s "${DATABASE_URL}/restaurant-system/${collection}/${RESTAURANT_ID}.json" > "${BACKUP_DIR}/${collection}.json"
+          for collection in $COLLECTIONS; do
+            echo "Backing up $collection..."
+            curl -s "${DATABASE_URL}/restaurant-system/${collection}/${RESTAURANT_ID}.json" -o "${BACKUP_DIR}/${collection}.json"
             
             # Check if file has content
-            if [ -s "${BACKUP_DIR}/${collection}.json" ] && [ "$(cat ${BACKUP_DIR}/${collection}.json)" != "null" ]; then
-              echo "   ✅ Success"
+            if [ -s "${BACKUP_DIR}/${collection}.json" ]; then
+              SIZE=$(wc -c < "${BACKUP_DIR}/${collection}.json")
+              echo "  Done - ${SIZE} bytes"
             else
-              echo "   ⚪ Empty or not found"
+              echo "  Empty or not found"
             fi
           done
           
           # Create summary
-          echo "{" > "${BACKUP_DIR}/_summary.json"
-          echo "  \"timestamp\": \"$(date -Iseconds)\"," >> "${BACKUP_DIR}/_summary.json"
-          echo "  \"restaurant_id\": \"${RESTAURANT_ID}\"," >> "${BACKUP_DIR}/_summary.json"
-          echo "  \"collections\": [\"${COLLECTIONS[*]}\"]" >> "${BACKUP_DIR}/_summary.json"
-          echo "}" >> "${BACKUP_DIR}/_summary.json"
+          cat > "${BACKUP_DIR}/_summary.json" << EOF
+          {
+            "timestamp": "$(date -Iseconds)",
+            "restaurant_id": "${RESTAURANT_ID}",
+            "backup_date": "$(date +%Y-%m-%d)",
+            "backup_time": "$(date +%H:%M:%S)"
+          }
+          EOF
           
           echo ""
-          echo "✅ Backup completed!"
+          echo "Backup completed!"
+          echo ""
+          echo "Files created:"
           ls -la "$BACKUP_DIR"
       
       - name: Keep only last 30 backups
         run: |
           cd firebase-backups
           # Count folders and remove oldest if more than 30
-          BACKUP_COUNT=$(ls -d */ 2>/dev/null | wc -l)
+          BACKUP_COUNT=$(ls -d */ 2>/dev/null | wc -l || echo "0")
+          echo "Current backup count: $BACKUP_COUNT"
           if [ "$BACKUP_COUNT" -gt 30 ]; then
             echo "Cleaning old backups (keeping last 30)..."
             ls -dt */ | tail -n +31 | xargs rm -rf
@@ -82,7 +87,7 @@ jobs:
       - name: Commit and Push Backup
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --local user.name "GitHub Actions Bot"
           
           git add firebase-backups/
           
@@ -90,7 +95,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "🔄 Daily backup - $(date +'%Y-%m-%d %H:%M')"
+            git commit -m "Backup $(date +'%Y-%m-%d %H:%M')"
             git push
-            echo "✅ Backup pushed to GitHub!"
+            echo "Backup pushed to GitHub!"
           fi
