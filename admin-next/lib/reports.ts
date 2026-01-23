@@ -65,6 +65,7 @@ export interface DailyClosing {
 export interface TopProduct {
   id: string;
   name: string;
+  nameEn?: string;
   emoji?: string;
   quantity: number;
   revenue: number;
@@ -365,6 +366,18 @@ export const getTopProducts = async (
 ): Promise<TopProduct[]> => {
   const orders = await getOrdersByDateRange(startDate, endDate);
   
+  // Fetch products to get English names
+  let productsMap: Map<string, { nameEn?: string }> = new Map();
+  try {
+    const productsSnapshot = await get(ref(database, getPath('menu')));
+    const productsData = productsSnapshot.val() || {};
+    Object.entries(productsData).forEach(([id, product]: [string, any]) => {
+      productsMap.set(id, { nameEn: product.nameEn });
+    });
+  } catch (e) {
+    console.error('Error fetching products for English names:', e);
+  }
+  
   const productMap = new Map<string, TopProduct>();
   
   orders.filter(o => o.status !== 'cancelled').forEach(order => {
@@ -372,6 +385,7 @@ export const getTopProducts = async (
       const existing = productMap.get(item.id) || {
         id: item.id,
         name: item.name,
+        nameEn: productsMap.get(item.id)?.nameEn,
         emoji: item.emoji,
         quantity: 0,
         revenue: 0,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
-import { Product, Category, Table, Room, Order, ProductVariation, listenToOrders, getOrder } from '@/lib/firebase/database';
+import { Product, Category, Table, Room, Order, ProductVariation, listenToOrders, getOrder, addItemsToOrder, OrderItem } from '@/lib/firebase/database';
 import { 
   CartItem, 
   POSOrder, 
@@ -61,6 +61,10 @@ export default function CashierPage() {
   const [receiptData, setReceiptData] = useState<any>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [selectedPendingOrder, setSelectedPendingOrder] = useState<Order | null>(null);
+  
+  // Add to existing order mode
+  const [addToOrderMode, setAddToOrderMode] = useState(false);
+  const [existingOrder, setExistingOrder] = useState<Order | null>(null);
 
   // Responsive handler
   useEffect(() => {
@@ -120,6 +124,26 @@ export default function CashierPage() {
       const orderId = urlParams.get('orderId');
       const roomId = urlParams.get('roomId');
       const tableId = urlParams.get('tableId');
+      const mode = urlParams.get('mode');
+      
+      // If orderId is provided with mode=add, enable add-to-order mode
+      if (orderId && orderId.trim() && mode === 'add') {
+        try {
+          console.log('Loading order for adding items:', orderId);
+          const order = await getOrder(orderId);
+          if (order && order.paymentStatus !== 'paid' && order.status !== 'completed') {
+            setExistingOrder(order);
+            setAddToOrderMode(true);
+            showToast(`وضع إضافة طلب للطاولة ${order.tableNumber || order.tableId?.slice(-4) || ''}`, 'success');
+            return;
+          } else if (order) {
+            showToast('هذا الطلب مدفوع بالفعل ولا يمكن الإضافة إليه', 'error');
+          }
+        } catch (error) {
+          console.error('Error loading order for add mode:', error);
+        }
+        return;
+      }
       
       // If orderId is provided, load that specific order
       if (orderId && orderId.trim()) {
@@ -334,13 +358,39 @@ export default function CashierPage() {
 
     setProcessing(true);
     try {
-      const orderId = await createPOSOrder(order, user.id, user.name);
-      showToast(`تم إنشاء الطلب #${orderId.slice(-6).toUpperCase()}`, 'success');
-      setCart([]);
-      await loadData(); // Refresh tables/rooms
+      // If in add-to-order mode, add items to existing order
+      if (addToOrderMode && existingOrder) {
+        const newItems: OrderItem[] = order.items.map(item => {
+          const orderItem: OrderItem = {
+            id: item.productId || item.id,
+            name: item.name,
+            price: item.unitPrice || 0,
+            quantity: item.quantity,
+            itemTotal: item.lineTotal || (item.quantity * (item.unitPrice || 0)),
+          };
+          // Only add optional fields if they have values
+          if (item.emoji) orderItem.emoji = item.emoji;
+          if (item.note) orderItem.note = item.note;
+          return orderItem;
+        });
+        
+        await addItemsToOrder(existingOrder.id, newItems);
+        showToast(`تم إضافة ${newItems.length} صنف للطلب #${existingOrder.id.slice(-6).toUpperCase()}`, 'success');
+        setCart([]);
+        setAddToOrderMode(false);
+        setExistingOrder(null);
+        // Navigate back to tables
+        window.history.back();
+      } else {
+        // Create new order
+        const orderId = await createPOSOrder(order, user.id, user.name);
+        showToast(`تم إنشاء الطلب #${orderId.slice(-6).toUpperCase()}`, 'success');
+        setCart([]);
+        await loadData(); // Refresh tables/rooms
+      }
     } catch (error) {
-      console.error('Error creating order:', error);
-      showToast('خطأ في إنشاء الطلب', 'error');
+      console.error('Error creating/updating order:', error);
+      showToast('خطأ في الطلب', 'error');
     } finally {
       setProcessing(false);
     }
@@ -534,16 +584,59 @@ export default function CashierPage() {
         gap: isMobileView ? '12px' : '0',
       }}>
         <div style={{ flex: isMobileView ? '1 1 100%' : 'none' }}>
-          <h1 style={{ 
-            fontSize: isMobileView ? '18px' : '20px', 
-            fontWeight: 700, 
-            color: '#0f172a', 
-            margin: 0 
-          }}>
-            الكاشير
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h1 style={{ 
+              fontSize: isMobileView ? '18px' : '20px', 
+              fontWeight: 700, 
+              color: '#0f172a', 
+              margin: 0 
+            }}>
+              {addToOrderMode ? 'إضافة طلب للطاولة' : 'الكاشير'}
+            </h1>
+            {/* Add Mode Badge */}
+            {addToOrderMode && existingOrder && (
+              <span style={{
+                padding: '4px 12px',
+                backgroundColor: '#dbeafe',
+                color: '#1d4ed8',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}>
+                طاولة {existingOrder.tableNumber || existingOrder.tableId?.slice(-4)}
+                <button
+                  onClick={() => {
+                    setAddToOrderMode(false);
+                    setExistingOrder(null);
+                    window.history.back();
+                  }}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    backgroundColor: '#1d4ed8',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            )}
+          </div>
           <p style={{ fontSize: isMobileView ? '12px' : '13px', color: '#64748b', marginTop: '2px' }}>
-            نقطة البيع - {user?.name || 'مستخدم'}
+            {addToOrderMode 
+              ? `إضافة أصناف للطلب #${existingOrder?.id.slice(-6).toUpperCase() || ''}`
+              : `نقطة البيع - ${user?.name || 'مستخدم'}`
+            }
           </p>
         </div>
         <div style={{ display: 'flex', gap: isMobileView ? '8px' : '12px', flexWrap: 'wrap' }}>

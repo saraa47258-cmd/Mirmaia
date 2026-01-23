@@ -17,7 +17,8 @@ import {
   UserCircle,
   Edit3,
   Save,
-  CreditCard
+  CreditCard,
+  PlusCircle
 } from 'lucide-react';
 
 interface TableDetailsModalProps {
@@ -135,6 +136,18 @@ export default function TableDetailsModal({
 
   const handleOpenInCashier = () => {
     router.push(`/admin/cashier?tableId=${table.id}&orderId=${activeOrder?.id || ''}`);
+  };
+
+  // Navigate to add more items to occupied table
+  const handleAddToOrder = () => {
+    if (activeOrder) {
+      // Go to cashier with the existing order to add items
+      router.push(`/admin/cashier?tableId=${table.id}&orderId=${activeOrder.id}&mode=add`);
+    } else {
+      // Create new order for the table
+      router.push(`/admin/cashier?tableId=${table.id}&tableNumber=${encodeURIComponent(table.tableNumber)}`);
+    }
+    onClose();
   };
 
   const handlePrint = () => {
@@ -711,6 +724,33 @@ export default function TableDetailsModal({
           borderTop: '1px solid #e2e8f0',
           backgroundColor: '#f8fafc',
         }}>
+          {/* Add More Items Button - Show when table is occupied */}
+          {table.status === 'occupied' && (
+            <button
+              onClick={handleAddToOrder}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                padding: '16px',
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                border: 'none',
+                borderRadius: '14px',
+                fontSize: '16px',
+                fontWeight: 700,
+                color: '#ffffff',
+                cursor: 'pointer',
+                marginBottom: '12px',
+                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+              }}
+            >
+              <PlusCircle style={{ width: '22px', height: '22px' }} />
+              إضافة طلب جديد للطاولة
+            </button>
+          )}
+
           {/* Pay Now Button - Show when there's an active unpaid order */}
           {activeOrder && activeOrder.paymentStatus !== 'paid' && activeOrder.status !== 'completed' && (
             <button

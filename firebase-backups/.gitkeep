@@ -1,0 +1,16 @@
+# This folder contains automatic Firebase backups
+# مجلد النسخ الاحتياطية التلقائية من Firebase
+
+# Backups are created automatically every day at 3:00 AM (Oman Time)
+# يتم إنشاء نسخ احتياطية تلقائياً كل يوم الساعة 3:00 صباحاً (توقيت عُمان)
+
+# Each backup folder contains:
+# - orders.json
+# - menu.json
+# - categories.json
+# - workers.json
+# - tables.json
+# - rooms.json
+# - daily_closings.json
+# - invoices.json
+# - _summary.json

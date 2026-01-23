@@ -33,3 +33,8 @@ build/
 *.min.js
 *.min.css
 
+# Large ZIP files
+*.zip
+sham-coffee*.zip
+build/**/*.zip
+EXE_Package/**/*.zip

@@ -31,7 +31,9 @@ import {
   Plus,
   AlertCircle,
   CheckCircle,
+  FileDown,
 } from 'lucide-react';
+import { exportReportToPDF } from '@/lib/utils/pdfExport';
 
 export default function ReportsPage() {
   const { user } = useAuth();
@@ -68,6 +70,7 @@ export default function ReportsPage() {
   // UI State
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [showClosingModal, setShowClosingModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -184,6 +187,27 @@ export default function ReportsPage() {
     loadData(true);
   };
 
+  // Export to PDF
+  const handleExportPDF = async () => {
+    setExporting(true);
+    try {
+      await exportReportToPDF({
+        stats,
+        dailyStats,
+        topProducts,
+        closings,
+        dateRange: dateBounds,
+        restaurantName: 'Sham Coffee',
+      });
+      showToast('تم تصدير التقرير بنجاح', 'success');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      showToast('خطأ في تصدير التقرير', 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div style={{
       padding: '0',
@@ -215,7 +239,28 @@ export default function ReportsPage() {
             تحليل شامل لأداء المبيعات
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleExportPDF}
+            disabled={exporting || loading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              background: exporting ? '#94a3b8' : 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#ffffff',
+              cursor: exporting || loading ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+            }}
+          >
+            <FileDown style={{ width: '18px', height: '18px' }} />
+            {exporting ? 'جاري التصدير...' : 'تصدير PDF'}
+          </button>
           <button
             onClick={() => setShowClosingModal(true)}
             style={{

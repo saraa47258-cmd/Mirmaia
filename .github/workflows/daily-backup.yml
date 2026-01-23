@@ -1,0 +1,96 @@
+# Automatic Daily Firebase Backup
+# النسخ الاحتياطي التلقائي اليومي
+
+name: Daily Firebase Backup
+
+on:
+  # Run every day at 11:00 PM (UTC) = 3:00 AM Oman Time
+  schedule:
+    - cron: '0 23 * * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Create backup directory
+        run: mkdir -p firebase-backups
+      
+      - name: Backup Firebase Data
+        run: |
+          # Set variables
+          DATABASE_URL="https://sham-coffee-default-rtdb.firebaseio.com"
+          RESTAURANT_ID="sham-coffee-1"
+          TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+          BACKUP_DIR="firebase-backups/${TIMESTAMP}"
+          
+          mkdir -p "$BACKUP_DIR"
+          
+          echo "📅 Backup started at: $(date)"
+          echo "📁 Backup folder: $BACKUP_DIR"
+          echo ""
+          
+          # Collections to backup
+          COLLECTIONS=("orders" "menu" "categories" "workers" "tables" "rooms" "daily_closings" "invoices")
+          
+          for collection in "${COLLECTIONS[@]}"; do
+            echo "📦 Backing up $collection..."
+            curl -s "${DATABASE_URL}/restaurant-system/${collection}/${RESTAURANT_ID}.json" > "${BACKUP_DIR}/${collection}.json"
+            
+            # Check if file has content
+            if [ -s "${BACKUP_DIR}/${collection}.json" ] && [ "$(cat ${BACKUP_DIR}/${collection}.json)" != "null" ]; then
+              echo "   ✅ Success"
+            else
+              echo "   ⚪ Empty or not found"
+            fi
+          done
+          
+          # Create summary
+          echo "{" > "${BACKUP_DIR}/_summary.json"
+          echo "  \"timestamp\": \"$(date -Iseconds)\"," >> "${BACKUP_DIR}/_summary.json"
+          echo "  \"restaurant_id\": \"${RESTAURANT_ID}\"," >> "${BACKUP_DIR}/_summary.json"
+          echo "  \"collections\": [\"${COLLECTIONS[*]}\"]" >> "${BACKUP_DIR}/_summary.json"
+          echo "}" >> "${BACKUP_DIR}/_summary.json"
+          
+          echo ""
+          echo "✅ Backup completed!"
+          ls -la "$BACKUP_DIR"
+      
+      - name: Keep only last 30 backups
+        run: |
+          cd firebase-backups
+          # Count folders and remove oldest if more than 30
+          BACKUP_COUNT=$(ls -d */ 2>/dev/null | wc -l)
+          if [ "$BACKUP_COUNT" -gt 30 ]; then
+            echo "Cleaning old backups (keeping last 30)..."
+            ls -dt */ | tail -n +31 | xargs rm -rf
+          fi
+      
+      - name: Commit and Push Backup
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add firebase-backups/
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🔄 Daily backup - $(date +'%Y-%m-%d %H:%M')"
+            git push
+            echo "✅ Backup pushed to GitHub!"
+          fi

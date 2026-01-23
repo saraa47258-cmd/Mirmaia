@@ -873,6 +873,67 @@ export const updateOrderPaymentStatus = async (orderId: string, paymentStatus: '
   await update(ref(database, `${getPath('orders')}/${orderId}`), updates);
 };
 
+// Add items to existing order (for occupied tables)
+export const addItemsToOrder = async (orderId: string, newItems: OrderItem[]): Promise<void> => {
+  const order = await getOrder(orderId);
+  if (!order) throw new Error('Order not found');
+  
+  // Merge new items with existing items
+  const existingItems = order.items || [];
+  const mergedItems: OrderItem[] = [...existingItems];
+  
+  for (const newItem of newItems) {
+    // Check if item already exists (same id and name)
+    const existingIndex = mergedItems.findIndex(item => item.id === newItem.id && item.name === newItem.name);
+    
+    if (existingIndex >= 0) {
+      // Update quantity
+      mergedItems[existingIndex].quantity += newItem.quantity;
+      mergedItems[existingIndex].itemTotal = 
+        mergedItems[existingIndex].quantity * mergedItems[existingIndex].price;
+    } else {
+      // Add new item (clean undefined values)
+      const cleanItem: OrderItem = {
+        id: newItem.id,
+        name: newItem.name,
+        price: newItem.price || 0,
+        quantity: newItem.quantity,
+        itemTotal: newItem.quantity * (newItem.price || 0),
+      };
+      // Only add optional fields if they have values
+      if (newItem.emoji) cleanItem.emoji = newItem.emoji;
+      if (newItem.note) cleanItem.note = newItem.note;
+      
+      mergedItems.push(cleanItem);
+    }
+  }
+  
+  // Clean all items (remove undefined values)
+  const cleanedItems = mergedItems.map(item => {
+    const clean: OrderItem = {
+      id: item.id,
+      name: item.name,
+      price: item.price || 0,
+      quantity: item.quantity,
+      itemTotal: item.itemTotal || (item.quantity * (item.price || 0)),
+    };
+    if (item.emoji) clean.emoji = item.emoji;
+    if (item.note) clean.note = item.note;
+    return clean;
+  });
+  
+  // Recalculate total
+  const newTotal = cleanedItems.reduce((sum, item) => sum + (item.itemTotal || item.quantity * item.price), 0);
+  const itemsCount = cleanedItems.reduce((sum, item) => sum + item.quantity, 0);
+  
+  await update(ref(database, `${getPath('orders')}/${orderId}`), {
+    items: cleanedItems,
+    total: newTotal,
+    itemsCount,
+    updatedAt: new Date().toISOString(),
+  });
+};
+
 export const getSalesStats = async (startDate?: Date, endDate?: Date) => {
   const orders = await getOrders();
   
