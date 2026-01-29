@@ -23,10 +23,13 @@ import {
   Search, 
   Users,
   RefreshCw,
-  Filter
+  Filter,
+  Shield
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function WorkersPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -264,6 +267,25 @@ export default function WorkersPage() {
                 height: '18px',
                 animation: refreshing ? 'spin 1s linear infinite' : 'none',
               }} />
+            </button>
+            <button
+              onClick={() => router.push('/admin/add-admin')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: '#ffffff',
+                cursor: 'pointer',
+              }}
+            >
+              <Shield style={{ width: '18px', height: '18px' }} />
+              إضافة أدمن
             </button>
             <button
               onClick={() => setShowModal(true)}

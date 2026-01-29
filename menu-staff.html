@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
     <meta name="theme-color" content="#0a0a0f">
-    <title>قهوة الشام | منيو الموظفين</title>
+    <title>Mirmaia | منيو الموظفين</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800&display=swap" rel="stylesheet">
@@ -252,18 +252,18 @@
         
         // Firebase Config
         const firebaseConfig = {
-            apiKey: "AIzaSyB_rkIOsLACagxoSjNUCOPffJzw7Pq9MWc",
-            authDomain: "sham-coffee.firebaseapp.com",
-            databaseURL: "https://sham-coffee-default-rtdb.firebaseio.com",
-            projectId: "sham-coffee",
-            storageBucket: "sham-coffee.appspot.com",
-            messagingSenderId: "944066042498",
-            appId: "1:944066042498:web:8c1b5d5a8e2c4d9a8f5b2c"
+            apiKey: "AIzaSyCgClGRYyHcvrKAGVG05mBnIBRDNHZVNGQ",
+            authDomain: "mirmaia-33acc.firebaseapp.com",
+            databaseURL: "https://mirmaia-33acc-default-rtdb.firebaseio.com",
+            projectId: "mirmaia-33acc",
+            storageBucket: "mirmaia-33acc.firebasestorage.app",
+            messagingSenderId: "822171259038",
+            appId: "1:822171259038:web:c763356d68ab2a479b6b8f"
         };
         firebase.initializeApp(firebaseConfig);
         
         const db = firebase.database();
-        const RID = 'sham-coffee-1';
+        const RID = 'mirmaia-1';
         const ORDERS_PATH = `restaurant-system/restaurants/${RID}/orders`;
         const TABLES_PATH = `restaurant-system/restaurants/${RID}/tables`;
         const SHISHA_TYPES_PATH = `restaurant-system/restaurants/${RID}/shisha-types`;
@@ -535,7 +535,7 @@
             document.getElementById('modalBody').innerHTML = `
                 <div class="modal-img">${img}</div>
                 <div class="modal-title">${currentItem.name}</div>
-                <div class="modal-desc">${currentItem.description || 'منتج لذيذ من قهوة الشام'}</div>
+                <div class="modal-desc">${currentItem.description || 'منتج لذيذ من Mirmaia'}</div>
                 ${sizesH}
                 <div class="qty-row">
                     <button class="qty-btn" onclick="changeQty(-1)">−</button>

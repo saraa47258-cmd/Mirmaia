@@ -166,7 +166,7 @@ export default function StaffMenuPage() {
         tableNumber: tableNumber.trim(),
         orderType: 'table',
         source: 'staff-menu',
-        restaurantId: 'sham-coffee-1',
+        restaurantId: 'mirmaia-1',
         createdAt: new Date().toISOString(),
       });
 

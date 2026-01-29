@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sham-coffee-worker-v1';
+const CACHE_NAME = 'mirmaia-worker-v1';
 const urlsToCache = [
   '/worker-app.html',
   '/worker-manifest.json',
@@ -109,7 +109,7 @@ self.addEventListener('push', event => {
   };
   
   event.waitUntil(
-    self.registration.showNotification('قهوة الشام', options)
+    self.registration.showNotification('Mirmaia', options)
   );
 });
 

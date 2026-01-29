@@ -1,6 +1,6 @@
 /**
  * نظام معالجة حالة عدم الاتصال - الكاشير
- * قهوة الشام
+ * Mirmaia
  */
 
 class CashierOfflineHandler {
@@ -175,7 +175,7 @@ class CashierOfflineHandler {
         // محاولة الحفظ في Firebase
         try {
             if (typeof firebase !== 'undefined' && firebase.database) {
-                const orderRef = firebase.database().ref(`restaurant-system/restaurants/${orderData.restaurantId || 'sham-coffee-1'}/orders`).push();
+                const orderRef = firebase.database().ref(`restaurant-system/restaurants/${orderData.restaurantId || 'mirmaia-1'}/orders`).push();
                 await orderRef.set(orderData);
                 return { success: true, offline: false, orderId: orderRef.key };
             }
@@ -204,7 +204,7 @@ class CashierOfflineHandler {
         
         try {
             if (typeof firebase !== 'undefined' && firebase.database) {
-                const orderRef = firebase.database().ref(`restaurant-system/restaurants/${data.restaurantId || 'sham-coffee-1'}/orders/${data.orderId}`);
+                const orderRef = firebase.database().ref(`restaurant-system/restaurants/${data.restaurantId || 'mirmaia-1'}/orders/${data.orderId}`);
                 await orderRef.update(data.updates);
                 return { success: true, offline: false };
             }
@@ -240,7 +240,7 @@ class CashierOfflineHandler {
                     updates[`${orderId}/paymentMethod`] = data.paymentMethod;
                 });
                 
-                await firebase.database().ref(`restaurant-system/restaurants/${data.restaurantId || 'sham-coffee-1'}/orders`).update(updates);
+                await firebase.database().ref(`restaurant-system/restaurants/${data.restaurantId || 'mirmaia-1'}/orders`).update(updates);
                 return { success: true, offline: false };
             }
         } catch (error) {
@@ -285,7 +285,7 @@ class CashierOfflineHandler {
         
         try {
             if (typeof firebase !== 'undefined' && firebase.database) {
-                const closingRef = firebase.database().ref(`restaurant-system/restaurants/${data.restaurantId || 'sham-coffee-1'}/daily-closings`).push();
+                const closingRef = firebase.database().ref(`restaurant-system/restaurants/${data.restaurantId || 'mirmaia-1'}/daily-closings`).push();
                 await closingRef.set(data);
                 return { success: true, offline: false };
             }

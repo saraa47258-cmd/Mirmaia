@@ -22,10 +22,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
   padding: 0;
+  /* Mobile optimizations */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior: contain;
+  /* Performance */
+  will-change: auto;
+  transform: translateZ(0);
 }
 
 /* Login page override */
-body:has(.login-page) {
+body:has(.login-page),
+body:has(.worker-login-page) {
   background: transparent !important;
 }
 
@@ -52,6 +60,55 @@ body:has(.login-page) {
 ::selection {
   background: rgba(99, 102, 241, 0.2);
   color: #4f46e5;
+}
+
+@keyframes worker-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== Worker App Theme (mobile-first) ===== */
+.worker-app {
+  --worker-primary: #6366f1;
+  --worker-primary-dark: #4f46e5;
+  --worker-accent: #8b5cf6;
+  --worker-success: #10b981;
+  --worker-success-light: #d1fae5;
+  --worker-error: #ef4444;
+  --worker-error-light: #fee2e2;
+  --worker-warning: #f59e0b;
+  --worker-surface: #f8fafc;
+  --worker-surface-card: #ffffff;
+  --worker-text: #0f172a;
+  --worker-text-muted: #64748b;
+  --worker-border: #e2e8f0;
+  --worker-radius-sm: 12px;
+  --worker-radius-md: 16px;
+  --worker-radius-lg: 20px;
+  --worker-radius-xl: 24px;
+  --worker-shadow-card: 0 4px 12px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.02);
+  --worker-shadow-button: 0 4px 12px rgba(99, 102, 241, 0.35);
+  --worker-gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --worker-gradient-bg: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  --worker-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.worker-app .worker-module-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  border-color: var(--worker-primary) !important;
+}
+.worker-app .worker-module-card:active {
+  transform: translateY(-1px);
+}
+@media (max-width: 768px) {
+  .worker-app .worker-module-card:hover {
+    transform: none;
+  }
+  .worker-app .worker-module-card:active {
+    opacity: 0.92;
+  }
 }
 
 /* ===== RESPONSIVE UTILITIES ===== */
@@ -98,6 +155,20 @@ body:has(.login-page) {
   
   .hide-mobile { display: none !important; }
   .show-mobile { display: block !important; }
+  
+  /* Mobile performance optimizations */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  input, textarea, select {
+    font-size: 16px !important; /* Prevent zoom on iOS */
+  }
+  
+  button, a {
+    min-height: 44px; /* Better touch target */
+    min-width: 44px;
+  }
 }
 
 /* Mobile (480px - 767px) */
@@ -170,7 +241,7 @@ body:has(.login-page) {
   }
 }
 
-/* Smooth resize transitions */
+/* Smooth resize transitions - Optimized for mobile */
 * {
   transition-property: width, max-width, padding, margin, font-size;
   transition-duration: 0.2s;
@@ -180,6 +251,32 @@ body:has(.login-page) {
 /* Disable transitions for elements that shouldn't animate on resize */
 button, a, input, select, textarea {
   transition-property: background-color, border-color, color, box-shadow, opacity;
+}
+
+/* Mobile touch optimizations */
+@media (max-width: 767px) {
+  /* Reduce animations on mobile for better performance */
+  * {
+    transition-duration: 0.15s;
+  }
+  
+  /* Optimize scrolling */
+  body {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+  }
+  
+  /* Better touch targets */
+  button, a, input[type="button"], input[type="submit"] {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+  
+  /* Prevent text selection on buttons */
+  button {
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }
 
 /* Print Styles for Receipt */

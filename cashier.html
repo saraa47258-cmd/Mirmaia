@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>قهوة الشام | الكاشير</title>
+    <title>Mirmaia | الكاشير</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
@@ -1191,7 +1191,7 @@
     <script src="js/app.js"></script>
     <script src="js/precision-calc.js"></script>
     <script>
-        const RESTAURANT_ID = 'sham-coffee-1';
+        const RESTAURANT_ID = 'mirmaia-1';
         const MENU_PATH = `restaurant-system/restaurants/${RESTAURANT_ID}/menu`;
         const ORDERS_PATH = `restaurant-system/restaurants/${RESTAURANT_ID}/orders`;
         const TABLES_PATH = `restaurant-system/restaurants/${RESTAURANT_ID}/tables`;
@@ -3048,7 +3048,7 @@
             };
 
             // حفظ في Firebase
-            const closingPath = `restaurant-system/restaurants/sham-coffee-1/daily-closings`;
+            const closingPath = `restaurant-system/restaurants/mirmaia-1/daily-closings`;
             firebase.database().ref(closingPath).push(closingRecord)
                 .then(() => {
                     BonApp.showToast('تم إغلاق حسابات اليوم بنجاح! ✅', 'success');

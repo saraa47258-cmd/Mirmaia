@@ -69,8 +69,8 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
       return;
     }
     
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors({ ...errors, image: 'حجم الصورة يجب أن يكون أقل من 5 ميجا' });
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors({ ...errors, image: 'حجم الصورة يجب أن يكون أقل من 10 ميجا' });
       return;
     }
     
@@ -80,11 +80,16 @@ export default function CategoryModal({ category, onClose, onSave, existingCateg
     try {
       const imageUrl = await uploadCategoryImage(file, category?.id);
       setFormData({ ...formData, imageUrl });
-    } catch (error) {
+      // Clear any previous errors on success
+      setErrors({ ...errors, image: '' });
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      setErrors({ ...errors, image: 'حدث خطأ في رفع الصورة' });
+      const errorMessage = error?.message || 'حدث خطأ في رفع الصورة';
+      setErrors({ ...errors, image: errorMessage });
     } finally {
       setUploading(false);
+      // Reset input to allow selecting the same file again
+      e.target.value = '';
     }
   };
 

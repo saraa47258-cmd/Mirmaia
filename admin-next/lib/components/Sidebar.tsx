@@ -192,7 +192,7 @@ export default function Sidebar({ isOpen = true, onClose, isMobile = false, widt
               color: '#ffffff',
               letterSpacing: '0.3px',
             }}>
-              قهوة الشام
+              Mirmaia
             </div>
             <div style={{ 
               fontSize: '12px', 

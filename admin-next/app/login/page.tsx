@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { loginAdmin } from '@/lib/auth';
 
@@ -10,6 +10,27 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [screenSize, setScreenSize] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize('mobile');
+      } else if (width < 1024) {
+        setScreenSize('tablet');
+      } else {
+        setScreenSize('desktop');
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = screenSize === 'mobile';
+  const isTablet = screenSize === 'tablet';
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,10 +58,11 @@ export default function LoginPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px',
+      padding: isMobile ? '16px' : isTablet ? '20px' : '24px',
       background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
       position: 'relative',
       overflow: 'hidden',
+      WebkitOverflowScrolling: 'touch',
     }}>
       {/* Animated Background Elements */}
       <div style={{
@@ -101,7 +123,7 @@ export default function LoginPage() {
       <div style={{
         position: 'relative',
         width: '100%',
-        maxWidth: '420px',
+        maxWidth: isMobile ? '100%' : isTablet ? '400px' : '420px',
         zIndex: 10,
       }}>
         {/* Logo Section */}
@@ -149,7 +171,7 @@ export default function LoginPage() {
 
           {/* Title */}
           <h1 style={{
-            fontSize: '32px',
+            fontSize: isMobile ? '28px' : isTablet ? '30px' : '32px',
             fontWeight: 700,
             background: 'linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%)',
             WebkitBackgroundClip: 'text',
@@ -157,13 +179,15 @@ export default function LoginPage() {
             backgroundClip: 'text',
             marginBottom: '8px',
             letterSpacing: '-0.5px',
+            lineHeight: '1.2',
           }}>
-            قهوة الشام
+            Mirmaia
           </h1>
           <p style={{
-            fontSize: '15px',
+            fontSize: isMobile ? '14px' : '15px',
             color: 'rgba(148, 163, 184, 0.8)',
             fontWeight: 400,
+            lineHeight: '1.4',
           }}>
             تسجيل الدخول إلى لوحة التحكم
           </p>
@@ -174,33 +198,72 @@ export default function LoginPage() {
           background: 'rgba(15, 23, 42, 0.6)',
           backdropFilter: 'blur(20px)',
           border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '24px',
-          padding: '36px',
+          borderRadius: isMobile ? '16px' : '24px',
+          padding: isMobile ? '24px 20px' : isTablet ? '32px' : '36px',
           boxShadow: `
             0 4px 6px rgba(0, 0, 0, 0.1),
             0 10px 40px rgba(0, 0, 0, 0.2),
             inset 0 1px 0 rgba(255, 255, 255, 0.05)
           `,
+          boxSizing: 'border-box',
         }}>
           <form onSubmit={handleSubmit}>
             {/* Error Message */}
             {error && (
               <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
                 padding: '14px 16px',
                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
                 border: '1px solid rgba(239, 68, 68, 0.2)',
                 borderRadius: '12px',
                 marginBottom: '24px',
               }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" x2="12" y1="8" y2="12" />
-                  <line x1="12" x2="12.01" y1="16" y2="16" />
-                </svg>
-                <span style={{ fontSize: '14px', color: '#fca5a5' }}>{error}</span>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginBottom: error.includes('Permission denied') || error.includes('غير صحيحة') ? '12px' : '0',
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" x2="12" y1="8" y2="12" />
+                    <line x1="12" x2="12.01" y1="16" y2="16" />
+                  </svg>
+                  <span style={{ fontSize: '14px', color: '#fca5a5', flex: 1 }}>{error}</span>
+                </div>
+                {(error.includes('Permission denied') || error.includes('غير صحيحة')) && (
+                  <div style={{
+                    marginTop: '12px',
+                    paddingTop: '12px',
+                    borderTop: '1px solid rgba(239, 68, 68, 0.2)',
+                  }}>
+                    <p style={{ fontSize: '13px', color: '#fca5a5', marginBottom: '8px' }}>
+                      لا يوجد حساب أدمن في النظام؟
+                    </p>
+                    <a
+                      href="/setup-admin"
+                      style={{
+                        display: 'inline-block',
+                        padding: '8px 16px',
+                        backgroundColor: 'rgba(220, 38, 38, 0.2)',
+                        border: '1px solid rgba(220, 38, 38, 0.4)',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#fca5a5',
+                        textDecoration: 'none',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.3)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.2)';
+                      }}
+                    >
+                      إعداد حساب الأدمن الأول
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 
@@ -241,19 +304,21 @@ export default function LoginPage() {
                   placeholder="أدخل اسم المستخدم"
                   style={{
                     width: '100%',
-                    padding: '16px 48px 16px 16px',
+                    padding: isMobile ? '14px 48px 14px 16px' : '16px 48px 16px 16px',
                     backgroundColor: 'rgba(30, 41, 59, 0.5)',
                     border: focusedField === 'username' 
                       ? '2px solid rgba(168, 85, 247, 0.5)' 
                       : '2px solid rgba(71, 85, 105, 0.3)',
                     borderRadius: '14px',
-                    fontSize: '15px',
+                    fontSize: isMobile ? '16px' : '15px', // Prevent zoom on iOS
                     color: '#f1f5f9',
                     outline: 'none',
                     transition: 'all 0.2s',
                     boxShadow: focusedField === 'username' 
                       ? '0 0 0 4px rgba(168, 85, 247, 0.1)' 
                       : 'none',
+                    WebkitAppearance: 'none',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
@@ -296,19 +361,21 @@ export default function LoginPage() {
                   placeholder="أدخل كلمة المرور"
                   style={{
                     width: '100%',
-                    padding: '16px 48px',
+                    padding: isMobile ? '14px 48px' : '16px 48px',
                     backgroundColor: 'rgba(30, 41, 59, 0.5)',
                     border: focusedField === 'password' 
                       ? '2px solid rgba(168, 85, 247, 0.5)' 
                       : '2px solid rgba(71, 85, 105, 0.3)',
                     borderRadius: '14px',
-                    fontSize: '15px',
+                    fontSize: isMobile ? '16px' : '15px',
                     color: '#f1f5f9',
                     outline: 'none',
                     transition: 'all 0.2s',
                     boxShadow: focusedField === 'password' 
                       ? '0 0 0 4px rgba(168, 85, 247, 0.1)' 
                       : 'none',
+                    WebkitAppearance: 'none',
+                    boxSizing: 'border-box',
                   }}
                 />
                 <button
@@ -353,13 +420,13 @@ export default function LoginPage() {
               disabled={loading}
               style={{
                 width: '100%',
-                padding: '16px 24px',
+                padding: isMobile ? '16px 24px' : '16px 24px',
                 background: loading 
                   ? 'rgba(99, 102, 241, 0.5)' 
                   : 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
                 border: 'none',
                 borderRadius: '14px',
-                fontSize: '16px',
+                fontSize: isMobile ? '16px' : '16px',
                 fontWeight: 600,
                 color: '#ffffff',
                 cursor: loading ? 'not-allowed' : 'pointer',
@@ -371,9 +438,12 @@ export default function LoginPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
+                minHeight: isMobile ? '48px' : '44px',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent',
               }}
               onMouseOver={(e) => {
-                if (!loading) {
+                if (!loading && !isMobile) {
                   e.currentTarget.style.transform = 'translateY(-2px)';
                   e.currentTarget.style.boxShadow = '0 8px 30px rgba(99, 102, 241, 0.5)';
                 }
@@ -381,6 +451,14 @@ export default function LoginPage() {
               onMouseOut={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = loading ? 'none' : '0 4px 20px rgba(99, 102, 241, 0.4)';
+              }}
+              onTouchStart={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.transform = 'scale(0.98)';
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
               }}
             >
               {loading ? (
@@ -415,7 +493,7 @@ export default function LoginPage() {
           color: 'rgba(100, 116, 139, 0.6)',
           marginTop: '32px',
         }}>
-          © 2026 قهوة الشام. جميع الحقوق محفوظة.
+          © 2026 Mirmaia. جميع الحقوق محفوظة.
         </p>
       </div>
 

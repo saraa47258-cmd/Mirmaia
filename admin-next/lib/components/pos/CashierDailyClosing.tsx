@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { 
   createEnhancedDailyClosing, 
   isDayClosed,
+  getTodaySalesForClosing,
+  getDailyClosingByDate,
   DailyClosing 
 } from '@/lib/reports';
 import { 
@@ -21,7 +23,8 @@ import {
   Coffee,
   DoorOpen,
   Receipt,
-  TrendingUp
+  TrendingUp,
+  RefreshCw
 } from 'lucide-react';
 
 interface CashierDailyClosingProps {
@@ -55,21 +58,97 @@ export default function CashierDailyClosing({
   const [step, setStep] = useState<'input' | 'confirm'>('input');
   const [alreadyClosed, setAlreadyClosed] = useState(false);
   const [checkingClosed, setCheckingClosed] = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
 
-  // Check if day is already closed
+  // Load sales data and check if day is already closed
   useEffect(() => {
-    checkIfClosed();
+    loadData();
   }, [date]);
 
-  const checkIfClosed = async () => {
+  const loadData = async () => {
     setCheckingClosed(true);
+    setLoadingData(true);
+    // Reset manual input fields
+    setExpenses('0');
+    setActualCash('0');
+    setNotes('');
+    setError('');
+    setStep('input');
+    
     try {
+      // Check if day is already closed
       const closed = await isDayClosed(date);
       setAlreadyClosed(closed);
+
+      // If not closed, load sales data
+      if (!closed) {
+        const salesData = await getTodaySalesForClosing(date);
+        
+        console.log('Daily Closing - Loaded sales data:', {
+          date,
+          cashSales: salesData.cashSales,
+          cardSales: salesData.cardSales,
+          totalSales: salesData.totalSales,
+          ordersCount: salesData.ordersCount,
+          paidOrdersCount: salesData.paidOrdersCount,
+          allOrdersCount: salesData.orders.length,
+          orders: salesData.orders.map(o => ({
+            id: o.id,
+            status: o.status,
+            paymentStatus: o.paymentStatus,
+            paymentMethod: o.paymentMethod,
+            total: o.total,
+            createdAt: o.createdAt
+          }))
+        });
+        
+        // Populate sales data - ensure values are never empty strings or undefined
+        setCashSales(salesData.cashSales && salesData.cashSales > 0 ? salesData.cashSales.toFixed(3) : '0');
+        setCardSales(salesData.cardSales && salesData.cardSales > 0 ? salesData.cardSales.toFixed(3) : '0');
+        setOrdersCount(salesData.ordersCount && salesData.ordersCount > 0 ? salesData.ordersCount.toString() : '0');
+        setPaidOrdersCount(salesData.paidOrdersCount && salesData.paidOrdersCount > 0 ? salesData.paidOrdersCount.toString() : '0');
+        setUnpaidOrdersCount(salesData.unpaidOrdersCount && salesData.unpaidOrdersCount > 0 ? salesData.unpaidOrdersCount.toString() : '0');
+        setTableOrdersCount(salesData.tableOrdersCount && salesData.tableOrdersCount > 0 ? salesData.tableOrdersCount.toString() : '0');
+        setRoomOrdersCount(salesData.roomOrdersCount && salesData.roomOrdersCount > 0 ? salesData.roomOrdersCount.toString() : '0');
+        setTakeawayOrdersCount(salesData.takeawayOrdersCount && salesData.takeawayOrdersCount > 0 ? salesData.takeawayOrdersCount.toString() : '0');
+
+        // Try to get opening cash from previous day's closing
+        try {
+          const prevDate = new Date(date);
+          prevDate.setDate(prevDate.getDate() - 1);
+          const prevDateStr = prevDate.toISOString().split('T')[0];
+          const prevClosing = await getDailyClosingByDate(prevDateStr);
+          
+          if (prevClosing) {
+            // Opening cash = previous day's actual cash
+            setOpeningCash(prevClosing.actualCash.toFixed(3));
+          } else {
+            // Reset to 0 if no previous closing found
+            setOpeningCash('0');
+          }
+        } catch (err) {
+          console.error('Error loading previous day closing:', err);
+          // Keep opening cash as 0 if can't load previous day
+          setOpeningCash('0');
+        }
+      } else {
+        // If already closed, reset all fields
+        setCashSales('0');
+        setCardSales('0');
+        setOrdersCount('0');
+        setPaidOrdersCount('0');
+        setUnpaidOrdersCount('0');
+        setTableOrdersCount('0');
+        setRoomOrdersCount('0');
+        setTakeawayOrdersCount('0');
+        setOpeningCash('0');
+      }
     } catch (error) {
-      console.error('Error checking if day is closed:', error);
+      console.error('Error loading data:', error);
+      setError('حدث خطأ أثناء تحميل البيانات');
     } finally {
       setCheckingClosed(false);
+      setLoadingData(false);
     }
   };
 
@@ -202,9 +281,9 @@ export default function CashierDailyClosing({
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-          {checkingClosed ? (
+          {checkingClosed || loadingData ? (
             <div style={{ textAlign: 'center', padding: '48px' }}>
-              <p style={{ color: '#64748b' }}>جاري التحقق...</p>
+              <p style={{ color: '#64748b' }}>جاري تحميل البيانات...</p>
             </div>
           ) : alreadyClosed ? (
             <div style={{
@@ -248,31 +327,73 @@ export default function CashierDailyClosing({
                 </div>
               )}
 
-              {/* Date Selection */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{
+              {/* Info message if all sales are zero */}
+              {!loadingData && !checkingClosed && parseFloat(cashSales || '0') === 0 && parseFloat(cardSales || '0') === 0 && (
+                <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#374151',
-                  marginBottom: '10px',
+                  gap: '10px',
+                  padding: '14px 16px',
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  borderRadius: '12px',
+                  marginBottom: '20px',
                 }}>
-                  <Calendar style={{ width: '16px', height: '16px' }} />
-                  تاريخ الإغلاق
-                </label>
+                  <AlertCircle style={{ width: '18px', height: '18px', color: '#3b82f6' }} />
+                  <span style={{ fontSize: '14px', color: '#3b82f6' }}>
+                    لا توجد مبيعات مسجلة لهذا التاريخ. يمكنك إدخال البيانات يدوياً.
+                  </span>
+                </div>
+              )}
+
+              {/* Date Selection */}
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#374151',
+                  }}>
+                    <Calendar style={{ width: '16px', height: '16px' }} />
+                    تاريخ الإغلاق
+                  </label>
+                  <button
+                    type="button"
+                    onClick={loadData}
+                    disabled={loadingData || checkingClosed}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 12px',
+                      backgroundColor: '#f1f5f9',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#475569',
+                      cursor: loadingData || checkingClosed ? 'not-allowed' : 'pointer',
+                      opacity: loadingData || checkingClosed ? 0.5 : 1,
+                    }}
+                  >
+                    <RefreshCw style={{ width: '14px', height: '14px' }} />
+                    إعادة تحميل
+                  </button>
+                </div>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   max={new Date().toISOString().split('T')[0]}
                   required
-                  disabled={step === 'confirm'}
+                  disabled={step === 'confirm' || loadingData || checkingClosed}
                   style={{
                     width: '100%',
                     padding: '14px 16px',
-                    backgroundColor: step === 'confirm' ? '#e2e8f0' : '#f8fafc',
+                    backgroundColor: step === 'confirm' || loadingData || checkingClosed ? '#e2e8f0' : '#f8fafc',
                     border: '2px solid #e2e8f0',
                     borderRadius: '12px',
                     fontSize: '14px',
@@ -323,11 +444,12 @@ export default function CashierDailyClosing({
                     </label>
                     <input
                       type="number"
-                      value={cashSales}
-                      onChange={(e) => setCashSales(e.target.value)}
+                      value={cashSales || '0'}
+                      onChange={(e) => setCashSales(e.target.value || '0')}
                       step="0.001"
                       min="0"
                       disabled={step === 'confirm'}
+                      placeholder="0"
                       style={{
                         width: '100%',
                         padding: '12px',
@@ -355,11 +477,12 @@ export default function CashierDailyClosing({
                     </label>
                     <input
                       type="number"
-                      value={cardSales}
-                      onChange={(e) => setCardSales(e.target.value)}
+                      value={cardSales || '0'}
+                      onChange={(e) => setCardSales(e.target.value || '0')}
                       step="0.001"
                       min="0"
                       disabled={step === 'confirm'}
+                      placeholder="0"
                       style={{
                         width: '100%',
                         padding: '12px',
@@ -387,10 +510,11 @@ export default function CashierDailyClosing({
                     </label>
                     <input
                       type="number"
-                      value={ordersCount}
-                      onChange={(e) => setOrdersCount(e.target.value)}
+                      value={ordersCount || '0'}
+                      onChange={(e) => setOrdersCount(e.target.value || '0')}
                       min="0"
                       disabled={step === 'confirm'}
+                      placeholder="0"
                       style={{
                         width: '100%',
                         padding: '12px',
@@ -556,11 +680,12 @@ export default function CashierDailyClosing({
                     </label>
                     <input
                       type="number"
-                      value={openingCash}
-                      onChange={(e) => setOpeningCash(e.target.value)}
+                      value={openingCash || '0'}
+                      onChange={(e) => setOpeningCash(e.target.value || '0')}
                       step="0.001"
                       min="0"
                       disabled={step === 'confirm'}
+                      placeholder="0"
                       style={{
                         width: '100%',
                         padding: '12px 14px',
@@ -578,11 +703,12 @@ export default function CashierDailyClosing({
                     </label>
                     <input
                       type="number"
-                      value={expenses}
-                      onChange={(e) => setExpenses(e.target.value)}
+                      value={expenses || '0'}
+                      onChange={(e) => setExpenses(e.target.value || '0')}
                       step="0.001"
                       min="0"
                       disabled={step === 'confirm'}
+                      placeholder="0"
                       style={{
                         width: '100%',
                         padding: '12px 14px',
@@ -602,12 +728,13 @@ export default function CashierDailyClosing({
                   </label>
                   <input
                     type="number"
-                    value={actualCash}
-                    onChange={(e) => setActualCash(e.target.value)}
+                    value={actualCash || '0'}
+                    onChange={(e) => setActualCash(e.target.value || '0')}
                     step="0.001"
                     min="0"
                     required
                     disabled={step === 'confirm'}
+                    placeholder="0"
                     style={{
                       width: '100%',
                       padding: '14px 16px',

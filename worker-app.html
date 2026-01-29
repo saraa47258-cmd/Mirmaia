@@ -6,11 +6,11 @@
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="قهوة الشام">
+    <meta name="apple-mobile-web-app-title" content="Mirmaia">
     <link rel="manifest" href="worker-manifest.json">
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-    <title>قهوة الشام | تطبيق العمال</title>
+    <title>Mirmaia | تطبيق العمال</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -715,7 +715,7 @@
     <!-- Header -->
     <header class="app-header">
         <div class="header-right">
-            <div class="app-logo">☕ قهوة الشام</div>
+            <div class="app-logo">☕ Mirmaia</div>
             <span class="worker-name" id="workerName">موظف</span>
         </div>
         <div class="header-actions">
@@ -871,19 +871,19 @@
     <script>
         // Firebase Config
         const firebaseConfig = {
-            apiKey: "AIzaSyBD3RarLj_696emYW84zZ1tliP_Th1z6mM",
-            authDomain: "sham-coffee.firebaseapp.com",
-            databaseURL: "https://sham-coffee-default-rtdb.firebaseio.com",
-            projectId: "sham-coffee",
-            storageBucket: "sham-coffee.firebasestorage.app",
-            messagingSenderId: "483086837036",
-            appId: "1:483086837036:web:2a6bf9084050ef399ef889"
+            apiKey: "AIzaSyCgClGRYyHcvrKAGVG05mBnIBRDNHZVNGQ",
+            authDomain: "mirmaia-33acc.firebaseapp.com",
+            databaseURL: "https://mirmaia-33acc-default-rtdb.firebaseio.com",
+            projectId: "mirmaia-33acc",
+            storageBucket: "mirmaia-33acc.firebasestorage.app",
+            messagingSenderId: "822171259038",
+            appId: "1:822171259038:web:c763356d68ab2a479b6b8f"
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
         // Constants
-        const RID = localStorage.getItem('restaurant_id') || 'sham-coffee-1';
+        const RID = localStorage.getItem('restaurant_id') || 'mirmaia-1';
         const PATHS = {
             menu: `restaurant-system/restaurants/${RID}/menu`,
             categories: `restaurant-system/restaurants/${RID}/categories`,
@@ -1230,7 +1230,7 @@
             document.getElementById('productModalBody').innerHTML = `
                 <div class="product-modal-img">${img}</div>
                 <div class="product-modal-name">${currentProduct.name}</div>
-                <div class="product-modal-desc">${currentProduct.description || 'منتج لذيذ من قهوة الشام'}</div>
+                <div class="product-modal-desc">${currentProduct.description || 'منتج لذيذ من Mirmaia'}</div>
                 ${optionsHtml}
                 <div class="qty-row">
                     <button class="qty-btn" onclick="changeQty(-1)">−</button>

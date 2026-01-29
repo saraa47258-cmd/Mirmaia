@@ -1,23 +1,23 @@
 /**
- * تهيئة قاعدة البيانات الافتراضية لمشروع قهوة الشام
+ * تهيئة قاعدة البيانات الافتراضية لمشروع Mirmaia
  * قم بتشغيل هذا الملف من Console المتصفح بعد فتح الموقع
  */
 
 // تأكد من تهيئة Firebase أولاً
-async function initializeShamCoffeeDatabase() {
+async function initializeMirmaiaDatabase() {
     try {
-        const RESTAURANT_ID = 'sham-coffee-1';
+        const RESTAURANT_ID = 'mirmaia-1';
         const db = firebase.database();
         
         // بيانات المطعم
         await db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}`).set({
-            name: 'قهوة الشام',
+            name: 'Mirmaia',
             type: 'cafe',
             username: 'admin',
             password: 'admin123',
             status: 'active',
             phone: '99123456',
-            address: 'قهوة الشام',
+            address: 'Mirmaia',
             createdAt: new Date().toISOString()
         });
         
@@ -30,10 +30,10 @@ async function initializeShamCoffeeDatabase() {
         });
         
         // بيانات الموقع
-        await db.ref(`restaurant-system/sites/sham-coffee`).set({
-            name: 'قهوة الشام',
+        await db.ref(`restaurant-system/sites/mirmaia`).set({
+            name: 'Mirmaia',
             type: 'restaurant',
-            url: 'https://sham-coffee.web.app',
+            url: 'https://mirmaia-33acc.web.app',
             restaurantId: RESTAURANT_ID,
             status: 'active',
             createdAt: new Date().toISOString()
@@ -68,7 +68,7 @@ async function initializeShamCoffeeDatabase() {
 }
 
 // تشغيل التهيئة
-// initializeShamCoffeeDatabase();
+// initializeMirmaiaDatabase();
 
 
 

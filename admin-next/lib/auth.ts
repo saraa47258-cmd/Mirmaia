@@ -10,7 +10,31 @@ export interface User {
   role: UserRole;
   restaurantId: string;
   position?: string;
-  permissions?: string[];
+  permissions?: string[] | 'full' | 'menu-only';
+  detailedPermissions?: {
+    modules?: {
+      staffMenu?: boolean;
+      orders?: boolean;
+      tables?: boolean;
+      rooms?: boolean;
+      cashier?: boolean;
+      inventory?: boolean;
+      reports?: boolean;
+      products?: boolean;
+    };
+    actions?: {
+      createOrder?: boolean;
+      editOrder?: boolean;
+      cancelOrder?: boolean;
+      processPayment?: boolean;
+      applyDiscount?: boolean;
+      viewFinancials?: boolean;
+      manageProducts?: boolean;
+      manageTables?: boolean;
+      manageRooms?: boolean;
+      dailyClosing?: boolean;
+    };
+  };
 }
 
 interface Session {
@@ -55,7 +79,7 @@ const hashPassword = async (password: string): Promise<string> => {
   // في الإنتاج الحقيقي، يجب استخدام bcrypt على الخادم
   // هذا تشفير مؤقت للعرض فقط
   const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'sham-coffee-salt');
+  const data = encoder.encode(password + 'mirmaia-salt');
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -204,7 +228,8 @@ export const loginEmployee = async (username: string, password: string): Promise
     restaurantId: RESTAURANT_ID,
     position: workerFound.position,
     permissions: workerFound.permissions,
-  };
+    detailedPermissions: workerFound.detailedPermissions, // Include detailed permissions
+  } as User;
 
   // حفظ في sessionStorage
   if (isBrowser) {

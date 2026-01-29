@@ -1,6 +1,6 @@
 /**
  * نظام المصادقة باستخدام Firebase Authentication
- * قهوة الشام - نظام إدارة المقهى
+ * Mirmaia - نظام إدارة المقهى
  */
 
 // التحقق من أن Firebase تم تهيئته
@@ -82,7 +82,7 @@ async function loginAdmin(username, password) {
             username: adminFound.username,
             name: adminFound.name,
             role: adminFound.role,
-            restaurantId: adminFound.restaurantId || 'sham-coffee-1'
+            restaurantId: adminFound.restaurantId || 'mirmaia-1'
         }));
         
         // حفظ في قاعدة البيانات للتحقق لاحقاً
@@ -100,7 +100,7 @@ async function loginAdmin(username, password) {
                 username: adminFound.username,
                 name: adminFound.name,
                 role: adminFound.role,
-                restaurantId: adminFound.restaurantId || 'sham-coffee-1'
+                restaurantId: adminFound.restaurantId || 'mirmaia-1'
             }
         };
     } catch (error) {
@@ -112,7 +112,7 @@ async function loginAdmin(username, password) {
 /**
  * تسجيل الدخول كعامل
  */
-async function loginWorker(username, password, restaurantId = 'sham-coffee-1') {
+async function loginWorker(username, password, restaurantId = 'mirmaia-1') {
     try {
         // البحث عن العامل في قاعدة البيانات
         const workersRef = firebase.database().ref(`restaurant-system/workers/${restaurantId}`);

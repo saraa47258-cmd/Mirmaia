@@ -5,8 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:worker": "next build && node scripts/prepare-worker-build.js",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "add-admin": "tsx scripts/add-admin.ts",
+    "deploy:worker": "npm run build:worker && firebase deploy --only hosting"
   },
   "dependencies": {
     "firebase": "^12.8.0",
@@ -26,6 +29,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.2",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

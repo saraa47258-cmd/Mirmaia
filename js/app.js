@@ -2,7 +2,7 @@
 const BonApp = {
     // Configuration
     config: {
-        appName: 'قهوة الشام',
+        appName: 'Mirmaia',
         currency: 'ر.ع',
         version: '1.0.0'
     },
@@ -23,7 +23,7 @@ const BonApp = {
         this.setupNavigation();
         this.loadData();
         this.setupEventListeners();
-        console.log('☕ قهوة الشام App Initialized');
+        console.log('☕ Mirmaia App Initialized');
     },
     
     // Theme

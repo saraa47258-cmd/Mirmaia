@@ -69,8 +69,8 @@ export default function ReceiptPrint({
     
     let text = `
 ${line}
-           قهوة الشام
-         SHAM COFFEE
+           Mirmaia
+         MIRMAIA
 ${line}
 
 رقم الطلب: #${orderNumber}
@@ -235,7 +235,7 @@ ${line}
               color: '#0f172a',
               margin: '0 0 4px 0',
             }}>
-              ☕ قهوة الشام
+              ☕ Mirmaia
             </h1>
             <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
               شكراً لزيارتكم
@@ -460,7 +460,7 @@ ${line}
               شكراً لزيارتكم - نتمنى لكم يوماً سعيداً
             </p>
             <p style={{ fontSize: '10px', color: '#94a3b8', marginTop: '4px' }}>
-              www.sham-coffee.com
+              mirmaia-33acc.web.app
             </p>
           </div>
         </div>

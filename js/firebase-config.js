@@ -1,5 +1,5 @@
 /**
- * إعدادات Firebase - قهوة الشام
+ * إعدادات Firebase - Mirmaia
  * نظام إدارة المقاهي
  * 
  * ملاحظة: تم تحديث هذا الملف لاستخدام نظام آمن
@@ -13,16 +13,16 @@ const getFirebaseConfig = () => {
         return window.env.FIREBASE_CONFIG;
     }
     
-    // استخدام القيم الافتراضية (يجب استبدالها في الإنتاج)
+    // Mirmaia Project (mirmaia-33acc) - Default values
     // في الإنتاج، استخدم Firebase App Check لحماية API
     return {
-        apiKey: "AIzaSyBD3RarLj_696emYW84zZ1tliP_Th1z6mM",
-        authDomain: "sham-coffee.firebaseapp.com",
-        databaseURL: "https://sham-coffee-default-rtdb.firebaseio.com",
-        projectId: "sham-coffee",
-        storageBucket: "sham-coffee.firebasestorage.app",
-        messagingSenderId: "483086837036",
-        appId: "1:483086837036:web:2a6bf9084050ef399ef889"
+        apiKey: window.env?.FIREBASE_API_KEY || "AIzaSyCgClGRYyHcvrKAGVG05mBnIBRDNHZVNGQ",
+        authDomain: window.env?.FIREBASE_AUTH_DOMAIN || "mirmaia-33acc.firebaseapp.com",
+        databaseURL: window.env?.FIREBASE_DATABASE_URL || "https://mirmaia-33acc-default-rtdb.firebaseio.com",
+        projectId: window.env?.FIREBASE_PROJECT_ID || "mirmaia-33acc",
+        storageBucket: window.env?.FIREBASE_STORAGE_BUCKET || "mirmaia-33acc.firebasestorage.app",
+        messagingSenderId: window.env?.FIREBASE_MESSAGING_SENDER_ID || "822171259038",
+        appId: window.env?.FIREBASE_APP_ID || "1:822171259038:web:c763356d68ab2a479b6b8f"
     };
 };
 
@@ -273,6 +273,6 @@ window.FirebaseDB = {
 
 // إخفاء console.log في الإنتاج
 if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'production') {
-    console.log('🔥 Firebase متصل بنجاح - قهوة الشام');
+    console.log('🔥 Firebase متصل بنجاح - Mirmaia');
 }
 

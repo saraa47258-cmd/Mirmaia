@@ -16,8 +16,8 @@ const fs = require('fs');
 const path = require('path');
 
 // Firebase Configuration
-const DATABASE_URL = 'https://sham-coffee-default-rtdb.firebaseio.com';
-const RESTAURANT_ID = 'sham-coffee-1';
+const DATABASE_URL = 'https://mirmaia-33acc-default-rtdb.firebaseio.com';
+const RESTAURANT_ID = 'mirmaia-1';
 
 // Get backup folder from command line
 const backupFolderName = process.argv[2];

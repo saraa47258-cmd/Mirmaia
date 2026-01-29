@@ -21,18 +21,18 @@ import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, remove, get, update } from 'firebase/database';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBD3RarLj_696emYW84zZ1tliP_Th1z6mM",
-  authDomain: "sham-coffee.firebaseapp.com",
-  databaseURL: "https://sham-coffee-default-rtdb.firebaseio.com",
-  projectId: "sham-coffee",
-  storageBucket: "sham-coffee.firebasestorage.app",
-  messagingSenderId: "483086837036",
-  appId: "1:483086837036:web:2a6bf9084050ef399ef889"
+  apiKey: "AIzaSyCgClGRYyHcvrKAGVG05mBnIBRDNHZVNGQ",
+  authDomain: "mirmaia-33acc.firebaseapp.com",
+  databaseURL: "https://mirmaia-33acc-default-rtdb.firebaseio.com",
+  projectId: "mirmaia-33acc",
+  storageBucket: "mirmaia-33acc.firebasestorage.app",
+  messagingSenderId: "822171259038",
+  appId: "1:822171259038:web:c763356d68ab2a479b6b8f"
 };
 
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
-const RESTAURANT_ID = 'sham-coffee-1';
+const RESTAURANT_ID = 'mirmaia-1';
 
 const getPath = (collection: string) => `restaurant-system/${collection}/${RESTAURANT_ID}`;
 

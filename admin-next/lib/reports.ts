@@ -522,28 +522,75 @@ export const getTodaySalesForClosing = async (
   takeawayOrdersCount: number;
   orders: Order[];
 }> => {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(date);
-  end.setHours(23, 59, 59, 999);
-
-  const orders = await getOrdersByDateRange(start, end);
-  const completedOrders = orders.filter(o => 
-    o.status === 'completed' || o.paymentStatus === 'paid'
-  );
-  const allOrders = orders.filter(o => o.status !== 'cancelled');
-
-  const cashSales = completedOrders
-    .filter(o => o.paymentMethod === 'cash')
-    .reduce((sum, o) => sum + (o.total || 0), 0);
+  // Parse date and set time boundaries
+  const start = new Date(date + 'T00:00:00.000Z');
+  const end = new Date(date + 'T23:59:59.999Z');
   
-  const cardSales = completedOrders
-    .filter(o => o.paymentMethod === 'card')
-    .reduce((sum, o) => sum + (o.total || 0), 0);
+  // Also try local timezone parsing as fallback
+  const startLocal = new Date(date);
+  startLocal.setHours(0, 0, 0, 0);
+  const endLocal = new Date(date);
+  endLocal.setHours(23, 59, 59, 999);
 
-  const paidOrdersCount = completedOrders.length;
+  console.log('getTodaySalesForClosing - Date range:', {
+    date,
+    startUTC: start.toISOString(),
+    endUTC: end.toISOString(),
+    startLocal: startLocal.toISOString(),
+    endLocal: endLocal.toISOString()
+  });
+
+  const orders = await getOrdersByDateRange(startLocal, endLocal);
+  
+  console.log('getTodaySalesForClosing - Found orders:', orders.length);
+  
+  // Get all non-cancelled orders
+  const allOrders = orders.filter(o => o.status !== 'cancelled');
+  
+  console.log('getTodaySalesForClosing - Non-cancelled orders:', allOrders.length);
+  
+  // Get paid/completed orders - include orders with status 'paid' or 'completed', or paymentStatus 'paid'
+  const paidOrders = allOrders.filter(o => 
+    o.status === 'completed' || 
+    o.status === 'paid' || 
+    o.paymentStatus === 'paid'
+  );
+  
+  console.log('getTodaySalesForClosing - Paid orders:', paidOrders.length, paidOrders.map(o => ({
+    id: o.id,
+    status: o.status,
+    paymentStatus: o.paymentStatus,
+    paymentMethod: o.paymentMethod,
+    total: o.total
+  })));
+
+  // Calculate sales from all paid orders (not just completed)
+  // This includes orders that are paid but may not be marked as completed
+  const cashSales = paidOrders
+    .filter(o => o.paymentMethod === 'cash' && o.total && o.total > 0)
+    .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  
+  const cardSales = paidOrders
+    .filter(o => o.paymentMethod === 'card' && o.total && o.total > 0)
+    .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  
+  // Also include orders without paymentMethod specified but with total
+  // This handles legacy data or orders where paymentMethod might be missing
+  const ordersWithoutPaymentMethod = paidOrders.filter(o => 
+    !o.paymentMethod && o.total && o.total > 0
+  );
+  
+  // If there are orders without paymentMethod, add them to cash sales (default)
+  const additionalCashSales = ordersWithoutPaymentMethod.reduce(
+    (sum, o) => sum + (Number(o.total) || 0), 
+    0
+  );
+
+  const paidOrdersCount = paidOrders.length;
   const unpaidOrdersCount = allOrders.filter(o => 
-    o.paymentStatus !== 'paid' && o.status !== 'completed'
+    o.status !== 'paid' && 
+    o.status !== 'completed' && 
+    o.paymentStatus !== 'paid'
   ).length;
   
   const tableOrdersCount = allOrders.filter(o => o.orderType === 'table').length;
@@ -552,10 +599,13 @@ export const getTodaySalesForClosing = async (
     o.orderType === 'takeaway' || !o.orderType
   ).length;
 
+  const finalCashSales = cashSales + additionalCashSales;
+  const totalSales = finalCashSales + cardSales;
+
   return {
-    cashSales,
+    cashSales: finalCashSales,
     cardSales,
-    totalSales: cashSales + cardSales,
+    totalSales,
     ordersCount: allOrders.length,
     paidOrdersCount,
     unpaidOrdersCount,

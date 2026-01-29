@@ -120,7 +120,7 @@
         <div class="sidebar-header">
             <div class="logo">💨</div>
             <div class="brand">
-                <h1>قهوة الشام</h1>
+                <h1>Mirmaia</h1>
                 <p>${userRole}</p>
             </div>
         </div>

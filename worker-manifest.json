@@ -1,6 +1,6 @@
 {
-  "name": "قهوة الشام - تطبيق العمال",
-  "short_name": "قهوة الشام",
+  "name": "Mirmaia - تطبيق العمال",
+  "short_name": "Mirmaia",
   "description": "تطبيق الموظفين لإدارة الطلبات والكاشير",
   "start_url": "/worker-app.html",
   "display": "standalone",

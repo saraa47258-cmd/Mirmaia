@@ -1,25 +1,25 @@
 /**
- * تهيئة بيانات تجريبية شاملة لمشروع قهوة الشام
+ * تهيئة بيانات تجريبية شاملة لمشروع Mirmaia
  * قم باستدعاء initializeSampleData() من Console المتصفح
  */
 
 async function initializeSampleData() {
     try {
-        const RESTAURANT_ID = 'sham-coffee-1';
+        const RESTAURANT_ID = 'mirmaia-1';
         const db = firebase.database();
         
         console.log('🚀 بدء تهيئة البيانات التجريبية...');
         
         // 1. بيانات المطعم (تحديث وليس استبدال)
         await db.ref(`restaurant-system/restaurants/${RESTAURANT_ID}`).update({
-            name: 'قهوة الشام',
+            name: 'Mirmaia',
             type: 'cafe',
             username: 'admin',
             password: 'admin123',
             status: 'active',
             phone: '99123456',
             address: 'مسقط، سلطنة عُمان',
-            email: 'info@shamcoffee.om',
+            email: 'info@mirmaia.om',
             tables: 15,
             updatedAt: new Date().toISOString()
         });
@@ -30,16 +30,16 @@ async function initializeSampleData() {
             username: 'admin',
             password: 'admin123',
             name: 'المدير العام',
-            email: 'admin@shamcoffee.om',
+            email: 'admin@mirmaia.om',
             createdAt: new Date().toISOString()
         });
         console.log('✅ تم إضافة بيانات المدير');
         
         // 3. بيانات الموقع
-        await db.ref(`restaurant-system/sites/sham-coffee`).set({
-            name: 'قهوة الشام',
+        await db.ref(`restaurant-system/sites/mirmaia`).set({
+            name: 'Mirmaia',
             type: 'restaurant',
-            url: 'https://sham-coffee.web.app',
+            url: 'https://mirmaia-33acc.web.app',
             restaurantId: RESTAURANT_ID,
             status: 'active',
             createdAt: new Date().toISOString()
